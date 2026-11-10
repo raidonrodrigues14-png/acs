@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pontuação de Risco Familiar</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <style>
   :root{
     --verde:#00563f; --verde-claro:#e3efe9; --cinza:#f4f6f5; --borda:#d5ddd9; --texto:#1c2b25;
-    --rm:#5b6b64; --r1:#2e7d32; --r2:#e08a00; --r3:#c62828;
+    --rh:#3b9ae1; --r1:#4c9a2a; --r2:#f2b705; --r3:#9b2335;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--cinza);color:var(--texto)}
@@ -56,7 +57,7 @@
   .grade td.pont{text-align:center;font-weight:800;font-size:1rem;width:70px}
   .grade td.risco{text-align:center;width:60px}
   .tag{display:inline-block;color:#fff;font-weight:700;border-radius:6px;padding:3px 8px;font-size:.8rem}
-  .rm{background:var(--rm)} .r1{background:var(--r1)} .r2{background:var(--r2)} .r3{background:var(--r3)}
+  .rh{background:var(--rh)} .r1{background:var(--r1)} .r2{background:var(--r2);color:#1c2b25} .r3{background:var(--r3)}
   .resumo{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
   .resumo div{border:1px solid var(--borda);border-radius:8px;padding:8px 14px;text-align:center;min-width:90px}
   .resumo b{display:block;font-size:1.5rem}
@@ -117,7 +118,7 @@
 
       <div class="resumo" id="resumo"></div>
       <div class="nota" style="margin-top:10px">
-        Classificação: abaixo de 5 = RM (risco mínimo) · 5 ou 6 = R1 · 7 ou 8 = R2 · 9 ou mais = R3.
+        Classificação: 0 a 4 = RH (risco habitual) · 5 ou 6 = R1 (risco menor) · 7 ou 8 = R2 (risco médio) · 9 ou mais = R3 (risco máximo).
         Passe o mouse sobre o título de cada coluna para ver a definição da sentinela.
       </div>
       <div class="nota" style="margin-top:8px">
@@ -132,7 +133,7 @@
       <h2>Planilhas salvas</h2>
       <div style="overflow-x:auto">
         <table class="lista">
-          <thead><tr><th>Data</th><th>ACS</th><th>Rua / localidade</th><th>Microárea</th><th>Famílias</th><th>RM</th><th>R1</th><th>R2</th><th>R3</th><th></th></tr></thead>
+          <thead><tr><th>Data</th><th>ACS</th><th>Rua / localidade</th><th>Microárea</th><th>Famílias</th><th>RH</th><th>R1</th><th>R2</th><th>R3</th><th></th></tr></thead>
           <tbody id="lista"></tbody>
         </table>
       </div>
@@ -147,6 +148,8 @@
 
 <script>
 /* ========= CONFIGURAÇÃO ========= */
+/* As chaves ficam no arquivo config.js (assim, trocar o index.html não apaga a configuração). */
+const CFG = window.APP_CONFIG || {};
 const SUPABASE_URL = 'https://qnonohzczdvowkssjyaa.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_CKcc-9TIe0puzdeYA9D6qg_N6MslJEj';
 
@@ -181,7 +184,7 @@ function classificar(total){
   if(total >= 9) return {cod:'R3', css:'r3'};
   if(total >= 7) return {cod:'R2', css:'r2'};
   if(total >= 5) return {cod:'R1', css:'r1'};
-  return {cod:'RM', css:'rm'};
+  return {cod:'RH', css:'rh'};
 }
 
 /* ========= ESTADO / UI ========= */
@@ -261,10 +264,10 @@ function addLinha(d){
 function renumerar(){ linhas.forEach((r,i)=> r.els.num.textContent = i+1); }
 
 function atualizarResumo(){
-  const cont = {RM:0,R1:0,R2:0,R3:0}; let total = 0;
+  const cont = {RH:0,R1:0,R2:0,R3:0}; let total = 0;
   linhas.forEach(r=>{ if(r.els.nome.value.trim()){ total++; cont[r.res.risco]++; } });
   const box = $('resumo'); box.innerHTML='';
-  [['Famílias',total],['RM',cont.RM],['R1',cont.R1],['R2',cont.R2],['R3',cont.R3]].forEach(([t,v])=>{
+  [['Famílias',total],['RH',cont.RH],['R1',cont.R1],['R2',cont.R2],['R3',cont.R3]].forEach(([t,v])=>{
     const d=document.createElement('div'); d.innerHTML='<b></b><span class="nota"></span>';
     d.querySelector('b').textContent=v; d.querySelector('span').textContent=t; box.appendChild(d);
   });
@@ -292,7 +295,7 @@ async function salvar(){
   const res = atualizarResumo();
   const cab = {
     data, acs, rua:$('rua').value.trim()||null, microarea:$('microarea').value.trim()||null,
-    total_familias:res.total, qtd_rm:res.RM, qtd_r1:res.R1, qtd_r2:res.R2, qtd_r3:res.R3,
+    total_familias:res.total, qtd_rh:res.RH, qtd_r1:res.R1, qtd_r2:res.R2, qtd_r3:res.R3,
     updated_at:new Date().toISOString()
   };
 
@@ -326,7 +329,7 @@ async function salvar(){
 
 async function carregarLista(){
   const {data, error} = await sb.from('planilhas_risco')
-    .select('id,data,acs,rua,microarea,total_familias,qtd_rm,qtd_r1,qtd_r2,qtd_r3')
+    .select('id,data,acs,rua,microarea,total_familias,qtd_rh,qtd_r1,qtd_r2,qtd_r3')
     .order('data',{ascending:false}).order('created_at',{ascending:false}).limit(100);
   const tb = $('lista'); tb.innerHTML='';
   if(error){ msg('msg-app','Erro ao carregar planilhas: '+error.message,'erro'); return; }
@@ -334,7 +337,7 @@ async function carregarLista(){
   data.forEach(p=>{
     const tr = document.createElement('tr');
     const [a,m,d] = p.data.split('-');
-    [d+'/'+m+'/'+a, p.acs, p.rua||'', p.microarea||'', p.total_familias, p.qtd_rm, p.qtd_r1, p.qtd_r2, p.qtd_r3].forEach(v=>{
+    [d+'/'+m+'/'+a, p.acs, p.rua||'', p.microarea||'', p.total_familias, p.qtd_rh, p.qtd_r1, p.qtd_r2, p.qtd_r3].forEach(v=>{
       const td=document.createElement('td'); td.textContent=v; tr.appendChild(td);
     });
     const td = document.createElement('td'); td.style.whiteSpace='nowrap';
