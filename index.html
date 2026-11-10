@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pontuação de Risco Familiar</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --verde:#00563f; --verde-claro:#e3efe9; --cinza:#f4f6f5; --borda:#d5ddd9; --texto:#1c2b25;
+    --rm:#5b6b64; --r1:#2e7d32; --r2:#e08a00; --r3:#c62828;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--cinza);color:var(--texto)}
+  header{background:var(--verde);color:#fff;padding:18px 16px}
+  header h1{margin:0;font-size:1.2rem}
+  header p{margin:4px 0 0;font-size:.85rem;opacity:.85}
+  main{max-width:1280px;margin:0 auto;padding:16px}
+  .card{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:16px;margin-bottom:16px}
+  h2{margin:0 0 12px;font-size:1.05rem;color:var(--verde)}
+  label{display:block;font-size:.8rem;font-weight:600;margin-bottom:4px}
+  input[type=text],input[type=email],input[type=password],input[type=number],input[type=date]{
+    width:100%;padding:8px 10px;border:1px solid var(--borda);border-radius:6px;font-size:.95rem;background:#fff}
+  .cab{display:grid;grid-template-columns:150px 1fr 1fr 130px;gap:12px}
+  @media(max-width:760px){.cab{grid-template-columns:1fr 1fr}}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  button{cursor:pointer;border:0;border-radius:8px;padding:10px 16px;font-size:.95rem;font-weight:600}
+  .primario{background:var(--verde);color:#fff}
+  .secundario{background:#fff;color:var(--verde);border:1px solid var(--verde)}
+  .perigo{background:#fff;color:var(--r3);border:1px solid var(--r3);padding:4px 10px;font-size:.8rem}
+  .acoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .msg{margin-top:10px;font-size:.9rem}
+  .msg.erro{color:var(--r3)} .msg.ok{color:var(--r1)}
+  .nota{font-size:.78rem;color:#55645d}
+  .topo{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .hidden{display:none}
+
+  /* Grade */
+  .scroll{overflow:auto;max-height:70vh;border:1px solid var(--borda);border-radius:8px}
+  table.grade{border-collapse:separate;border-spacing:0;font-size:.85rem;min-width:max-content}
+  .grade th,.grade td{border-right:1px solid var(--borda);border-bottom:1px solid var(--borda);padding:4px 6px;background:#fff}
+  .grade thead th{position:sticky;top:0;background:var(--verde);color:#fff;z-index:3;font-size:.72rem;text-align:center}
+  .grade th.vert{height:150px;width:38px;padding:4px 0}
+  .grade th.vert span{writing-mode:vertical-rl;transform:rotate(180deg);display:inline-block;white-space:nowrap}
+  .sticky{position:sticky;z-index:2}
+  .grade thead th.sticky{z-index:4}
+  .s0{left:0;width:34px;min-width:34px;text-align:center}
+  .s1{left:34px;width:96px;min-width:96px}
+  .s2{left:130px;width:200px;min-width:200px;box-shadow:2px 0 0 var(--borda)}
+  .grade td.chk{text-align:center;width:38px}
+  .grade td.chk input{width:18px;height:18px;accent-color:var(--verde);cursor:pointer}
+  .grade td.chk.on{background:var(--verde-claro)}
+  .grade td input[type=text],.grade td input[type=number]{padding:5px 6px;border-radius:4px}
+  .grade td.num input{width:66px}
+  .grade td.pont{text-align:center;font-weight:800;font-size:1rem;width:70px}
+  .grade td.risco{text-align:center;width:60px}
+  .tag{display:inline-block;color:#fff;font-weight:700;border-radius:6px;padding:3px 8px;font-size:.8rem}
+  .rm{background:var(--rm)} .r1{background:var(--r1)} .r2{background:var(--r2)} .r3{background:var(--r3)}
+  .resumo{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .resumo div{border:1px solid var(--borda);border-radius:8px;padding:8px 14px;text-align:center;min-width:90px}
+  .resumo b{display:block;font-size:1.5rem}
+  table.lista{width:100%;border-collapse:collapse;font-size:.88rem}
+  .lista th,.lista td{text-align:left;padding:8px;border-bottom:1px solid var(--borda)}
+  .lista th{color:var(--verde)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Pontuação de Risco Familiar — Escala de Coelho-Savassi</h1>
+  <p>Planilha por agente comunitário e microárea, com cálculo automático de escore e risco</p>
+</header>
+
+<main>
+  <!-- LOGIN -->
+  <section id="tela-login" class="card hidden" style="max-width:520px">
+    <h2>Acesso</h2>
+    <div class="row2">
+      <div><label for="email">E-mail</label><input type="email" id="email" autocomplete="username"></div>
+      <div><label for="senha">Senha</label><input type="password" id="senha" autocomplete="current-password"></div>
+    </div>
+    <div class="acoes"><button class="primario" id="btn-entrar">Entrar</button></div>
+    <div id="msg-login" class="msg"></div>
+  </section>
+
+  <!-- APP -->
+  <section id="tela-app" class="hidden">
+    <div class="topo">
+      <span id="usuario" class="nota"></span>
+      <button class="secundario" id="btn-sair">Sair</button>
+    </div>
+
+    <div class="card">
+      <h2>Identificação da planilha</h2>
+      <div class="cab">
+        <div><label for="data">Data</label><input type="date" id="data"></div>
+        <div><label for="acs">ACS</label><input type="text" id="acs" placeholder="Nome do agente"></div>
+        <div><label for="rua">Rua / localidade</label><input type="text" id="rua"></div>
+        <div><label for="microarea">Microárea</label><input type="text" id="microarea" placeholder="Ex.: 13"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Famílias</h2>
+      <div class="scroll">
+        <table class="grade">
+          <thead><tr id="thead-row"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="acoes">
+        <button class="secundario" id="btn-add">+ Adicionar família</button>
+        <button class="primario" id="btn-salvar">Salvar planilha</button>
+        <button class="secundario" id="btn-nova">Nova planilha</button>
+      </div>
+      <div id="msg-app" class="msg"></div>
+
+      <div class="resumo" id="resumo"></div>
+      <div class="nota" style="margin-top:10px">
+        Classificação: abaixo de 5 = RM (risco mínimo) · 5 ou 6 = R1 · 7 ou 8 = R2 · 9 ou mais = R3.
+        Passe o mouse sobre o título de cada coluna para ver a definição da sentinela.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Planilhas salvas</h2>
+      <div style="overflow-x:auto">
+        <table class="lista">
+          <thead><tr><th>Data</th><th>ACS</th><th>Rua / localidade</th><th>Microárea</th><th>Famílias</th><th>RM</th><th>R1</th><th>R2</th><th>R3</th><th></th></tr></thead>
+          <tbody id="lista"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div id="aviso-config" class="card hidden">
+    <h2>Configuração pendente</h2>
+    <p>Defina <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> no início do script desta página.</p>
+  </div>
+</main>
+
+<script>
+/* ========= CONFIGURAÇÃO ========= */
+const SUPABASE_URL = 'COLE_AQUI_A_URL_DO_PROJETO';
+const SUPABASE_ANON_KEY = 'COLE_AQUI_A_ANON_KEY';
+
+/* Pontos da relação morador/cômodo (moradores ÷ cômodos).
+   A planilha usada pelo ACS pontua 0 quando a razão é menor que 1 (escala original).
+   O anexo do guia cita 1 ponto nesse caso; se preferir seguir o anexo, troque 'menor' para 1. */
+const PONTOS_RAZAO = { maior: 3, igual: 2, menor: 0 };
+
+/* ========= ESCALA ========= */
+const SENTINELAS = [
+  {id:'acamado',           curto:'Acamado / domiciliado',        pts:3, desc:'Pessoa restrita ao domicílio, sem capacidade de locomoção por si só a qualquer unidade de saúde.'},
+  {id:'deficiencia_fisica',curto:'Deficiência física',           pts:3, desc:'Condição física de longa duração ou permanente que dificulta ou impede atividades cotidianas, escolares, de trabalho ou lazer.'},
+  {id:'deficiencia_mental',curto:'Deficiência mental',           pts:3, desc:'Condição mental de longa duração ou permanente que dificulta ou impede atividades cotidianas, escolares, de trabalho ou lazer.'},
+  {id:'baixas_condicoes',  curto:'Baixas condições socioeconômicas', pts:3, desc:'Baixas condições de saneamento: falta de controle dos fatores do meio físico que podem exercer efeitos prejudiciais à saúde.'},
+  {id:'desnutricao',       curto:'Desnutrição grave',            pts:3, desc:'Percentil menor que 0,1 e peso muito baixo para a idade.'},
+  {id:'drogadicao',        curto:'Drogadição',                   pts:2, desc:'Uso compulsivo de drogas lícitas ou ilícitas com potencial de dependência (álcool, tabaco, benzodiazepínicos, barbitúricos e ilícitas).'},
+  {id:'desemprego',        curto:'Desemprego',                   pts:2, desc:'Pessoa sem nenhuma ocupação. Tarefas domésticas contam como ocupação.'},
+  {id:'analfabetismo',     curto:'Analfabetismo',                pts:1, desc:'A partir da idade escolar, não sabe ler nem escrever um bilhete, e/ou só sabe assinar o nome.'},
+  {id:'menor_6_meses',     curto:'Menores de 6 meses',           pts:1, desc:'Lactente com até 5 meses e 29 dias.'},
+  {id:'maior_70_anos',     curto:'Maiores de 70 anos',           pts:1, desc:'Pessoa com mais de 70 anos completos.'},
+  {id:'hipertensao',       curto:'Hipertensão',                  pts:1, desc:'PAS ≥ 140 mmHg e PAD ≥ 90 mmHg em indivíduos que não usam anti-hipertensivo.'},
+  {id:'diabetes',          curto:'Diabetes',                     pts:1, desc:'Doenças metabólicas caracterizadas por hiperglicemia e associadas a complicações e disfunções de vários órgãos.'}
+];
+
+function pontosRazao(mor, com){
+  if(!(mor > 0) || !(com > 0)) return {pts:0, razao:null};
+  const razao = mor / com;
+  const pts = mor > com ? PONTOS_RAZAO.maior : (mor === com ? PONTOS_RAZAO.igual : PONTOS_RAZAO.menor);
+  return {pts, razao};
+}
+
+function classificar(total){
+  if(total >= 9) return {cod:'R3', css:'r3'};
+  if(total >= 7) return {cod:'R2', css:'r2'};
+  if(total >= 5) return {cod:'R1', css:'r1'};
+  return {cod:'RM', css:'rm'};
+}
+
+/* ========= ESTADO / UI ========= */
+const $ = id => document.getElementById(id);
+let sb = null;
+let planilhaId = null;
+let linhas = [];
+
+function msg(id, texto, tipo){ const el=$(id); el.textContent=texto||''; el.className='msg '+(tipo||''); }
+
+function montarCabecalho(){
+  const tr = $('thead-row');
+  const add = (txt, cls, title) => {
+    const th = document.createElement('th'); th.className = cls||'';
+    if(cls && cls.includes('vert')){ const s=document.createElement('span'); s.textContent=txt; th.appendChild(s); }
+    else th.textContent = txt;
+    if(title) th.title = title;
+    tr.appendChild(th); return th;
+  };
+  add('Nº','sticky s0'); add('Prontuário','sticky s1'); add('Família / responsável','sticky s2');
+  SENTINELAS.forEach(s => add(s.curto+' ('+s.pts+')','vert',s.desc));
+  add('Moradores','vert','Número de moradores do domicílio');
+  add('Cômodos','vert','Cômodos do domicílio (inclui banheiro e cozinha; exclui corredores, alpendres, varandas abertas, garagens e depósitos)');
+  add('Pontuação',''); add('Risco',''); add('','');
+}
+
+function addLinha(d){
+  d = d || {};
+  const tr = document.createElement('tr');
+  const els = {chk:{}};
+  const cel = (cls) => { const td=document.createElement('td'); if(cls) td.className=cls; tr.appendChild(td); return td; };
+
+  els.num = cel('sticky s0');
+  const tdP = cel('sticky s1'); els.pront = document.createElement('input'); els.pront.type='text'; els.pront.value=d.prontuario||''; tdP.appendChild(els.pront);
+  const tdN = cel('sticky s2'); els.nome = document.createElement('input'); els.nome.type='text'; els.nome.value=d.nome||''; els.nome.placeholder='Nome'; tdN.appendChild(els.nome);
+
+  SENTINELAS.forEach(s=>{
+    const td = cel('chk'); const c = document.createElement('input'); c.type='checkbox';
+    c.checked = !!(d[s.id] && d[s.id] > 0); c.title = s.curto;
+    td.appendChild(c); els.chk[s.id] = {c, td};
+  });
+  const tdM = cel('num'); els.mor = document.createElement('input'); els.mor.type='number'; els.mor.min=0; els.mor.value = d.moradores ?? ''; tdM.appendChild(els.mor);
+  const tdC = cel('num'); els.com = document.createElement('input'); els.com.type='number'; els.com.min=0; els.com.value = d.comodos ?? ''; tdC.appendChild(els.com);
+  els.pont = cel('pont');
+  els.risco = cel('risco');
+  const tdX = cel(); const bx = document.createElement('button'); bx.className='perigo'; bx.textContent='×'; bx.title='Remover família'; tdX.appendChild(bx);
+
+  const row = {tr, els};
+  row.calc = () => {
+    let total = 0;
+    SENTINELAS.forEach(s=>{
+      const on = els.chk[s.id].c.checked;
+      els.chk[s.id].td.classList.toggle('on', on);
+      if(on) total += s.pts;
+    });
+    const pr = pontosRazao(Number(els.mor.value), Number(els.com.value));
+    total += pr.pts;
+    const r = classificar(total);
+    els.pont.textContent = total;
+    els.risco.innerHTML = ''; const tg = document.createElement('span'); tg.className='tag '+r.css; tg.textContent=r.cod; els.risco.appendChild(tg);
+    row.res = {total, risco:r.cod, ptsMoradia:pr.pts};
+    return row.res;
+  };
+
+  tr.addEventListener('input', ()=>{ row.calc(); atualizarResumo(); });
+  bx.onclick = ()=>{ tr.remove(); linhas = linhas.filter(r=>r!==row); renumerar(); atualizarResumo(); };
+
+  linhas.push(row); $('tbody').appendChild(tr);
+  row.calc(); renumerar(); atualizarResumo();
+  return row;
+}
+
+function renumerar(){ linhas.forEach((r,i)=> r.els.num.textContent = i+1); }
+
+function atualizarResumo(){
+  const cont = {RM:0,R1:0,R2:0,R3:0}; let total = 0;
+  linhas.forEach(r=>{ if(r.els.nome.value.trim()){ total++; cont[r.res.risco]++; } });
+  const box = $('resumo'); box.innerHTML='';
+  [['Famílias',total],['RM',cont.RM],['R1',cont.R1],['R2',cont.R2],['R3',cont.R3]].forEach(([t,v])=>{
+    const d=document.createElement('div'); d.innerHTML='<b></b><span class="nota"></span>';
+    d.querySelector('b').textContent=v; d.querySelector('span').textContent=t; box.appendChild(d);
+  });
+  return {total, ...cont};
+}
+
+function hoje(){ return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); }
+
+function novaPlanilha(){
+  planilhaId = null;
+  $('data').value = hoje(); $('acs').value=''; $('rua').value=''; $('microarea').value='';
+  linhas = []; $('tbody').innerHTML='';
+  for(let i=0;i<10;i++) addLinha();
+  msg('msg-app','');
+}
+
+/* ========= SUPABASE ========= */
+async function salvar(){
+  const data = $('data').value, acs = $('acs').value.trim();
+  if(!data || !acs){ msg('msg-app','Informe a data e o nome do ACS.','erro'); return; }
+  const preenchidas = linhas.filter(r=>r.els.nome.value.trim());
+  if(!preenchidas.length){ msg('msg-app','Preencha o nome de pelo menos uma família.','erro'); return; }
+  msg('msg-app','Salvando...');
+
+  const res = atualizarResumo();
+  const cab = {
+    data, acs, rua:$('rua').value.trim()||null, microarea:$('microarea').value.trim()||null,
+    total_familias:res.total, qtd_rm:res.RM, qtd_r1:res.R1, qtd_r2:res.R2, qtd_r3:res.R3,
+    updated_at:new Date().toISOString()
+  };
+
+  let q;
+  if(planilhaId) q = await sb.from('planilhas_risco').update(cab).eq('id',planilhaId).select('id').single();
+  else q = await sb.from('planilhas_risco').insert(cab).select('id').single();
+  if(q.error){ msg('msg-app','Erro ao salvar a planilha: '+q.error.message,'erro'); return; }
+  planilhaId = q.data.id;
+
+  const del = await sb.from('familias_risco').delete().eq('planilha_id',planilhaId);
+  if(del.error){ msg('msg-app','Erro ao atualizar famílias: '+del.error.message,'erro'); return; }
+
+  const rows = preenchidas.map((r,i)=>{
+    const e = r.els, c = r.calc();
+    const o = {
+      planilha_id: planilhaId, ordem: i+1,
+      prontuario: e.pront.value.trim()||null, nome: e.nome.value.trim(),
+      moradores: e.mor.value!=='' ? Number(e.mor.value) : null,
+      comodos: e.com.value!=='' ? Number(e.com.value) : null,
+      pontos_moradia: c.ptsMoradia, escore_total: c.total, risco: c.risco
+    };
+    SENTINELAS.forEach(s=>{ o[s.id] = e.chk[s.id].c.checked ? s.pts : 0; });
+    return o;
+  });
+  const ins = await sb.from('familias_risco').insert(rows);
+  if(ins.error){ msg('msg-app','Erro ao salvar famílias (os dados continuam na tela, tente de novo): '+ins.error.message,'erro'); return; }
+
+  msg('msg-app','Planilha salva ('+rows.length+' famílias).','ok');
+  carregarLista();
+}
+
+async function carregarLista(){
+  const {data, error} = await sb.from('planilhas_risco')
+    .select('id,data,acs,rua,microarea,total_familias,qtd_rm,qtd_r1,qtd_r2,qtd_r3')
+    .order('data',{ascending:false}).order('created_at',{ascending:false}).limit(100);
+  const tb = $('lista'); tb.innerHTML='';
+  if(error){ msg('msg-app','Erro ao carregar planilhas: '+error.message,'erro'); return; }
+  if(!data.length){ tb.innerHTML='<tr><td colspan="10">Nenhuma planilha salva.</td></tr>'; return; }
+  data.forEach(p=>{
+    const tr = document.createElement('tr');
+    const [a,m,d] = p.data.split('-');
+    [d+'/'+m+'/'+a, p.acs, p.rua||'', p.microarea||'', p.total_familias, p.qtd_rm, p.qtd_r1, p.qtd_r2, p.qtd_r3].forEach(v=>{
+      const td=document.createElement('td'); td.textContent=v; tr.appendChild(td);
+    });
+    const td = document.createElement('td'); td.style.whiteSpace='nowrap';
+    const bo = document.createElement('button'); bo.className='secundario'; bo.style.padding='4px 10px'; bo.textContent='Abrir';
+    bo.onclick = ()=>abrir(p.id);
+    const be = document.createElement('button'); be.className='perigo'; be.textContent='Excluir'; be.style.marginLeft='6px';
+    be.onclick = async ()=>{
+      if(!confirm('Excluir a planilha de '+p.acs+' ('+d+'/'+m+'/'+a+') e todas as suas famílias?')) return;
+      const r = await sb.from('planilhas_risco').delete().eq('id',p.id);
+      if(r.error) msg('msg-app','Erro ao excluir: '+r.error.message,'erro');
+      else { if(planilhaId===p.id) novaPlanilha(); carregarLista(); }
+    };
+    td.appendChild(bo); td.appendChild(be); tr.appendChild(td); tb.appendChild(tr);
+  });
+}
+
+async function abrir(id){
+  msg('msg-app','Abrindo...');
+  const p = await sb.from('planilhas_risco').select('*').eq('id',id).single();
+  if(p.error){ msg('msg-app','Erro: '+p.error.message,'erro'); return; }
+  const f = await sb.from('familias_risco').select('*').eq('planilha_id',id).order('ordem');
+  if(f.error){ msg('msg-app','Erro: '+f.error.message,'erro'); return; }
+  planilhaId = id;
+  $('data').value=p.data.data; $('acs').value=p.data.acs; $('rua').value=p.data.rua||''; $('microarea').value=p.data.microarea||'';
+  linhas=[]; $('tbody').innerHTML='';
+  f.data.forEach(d=>addLinha(d));
+  for(let i=0;i<3;i++) addLinha();
+  msg('msg-app','Planilha carregada.','ok');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ========= LOGIN ========= */
+function mostrar(logado, sessao){
+  $('tela-login').classList.toggle('hidden', logado);
+  $('tela-app').classList.toggle('hidden', !logado);
+  if(logado){ $('usuario').textContent = sessao.user.email; carregarLista(); }
+}
+async function entrar(){
+  msg('msg-login','');
+  const {error} = await sb.auth.signInWithPassword({email:$('email').value.trim(), password:$('senha').value});
+  if(error) msg('msg-login','Falha no login: '+error.message,'erro');
+}
+
+(async function init(){
+  montarCabecalho();
+  novaPlanilha();
+  $('btn-add').onclick = ()=>addLinha();
+  $('btn-salvar').onclick = salvar;
+  $('btn-nova').onclick = ()=>{ if(confirm('Descartar o que está na tela e começar uma planilha nova?')) novaPlanilha(); };
+  $('btn-entrar').onclick = entrar;
+  $('senha').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
+
+  if(SUPABASE_URL.startsWith('COLE_') || SUPABASE_ANON_KEY.startsWith('COLE_')){
+    $('aviso-config').classList.remove('hidden'); return;
+  }
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  $('btn-sair').onclick = ()=>sb.auth.signOut();
+  sb.auth.onAuthStateChange((_ev, sessao)=> mostrar(!!sessao, sessao));
+  const {data} = await sb.auth.getSession();
+  mostrar(!!data.session, data.session);
+})();
+</script>
+</body>
+</html>
