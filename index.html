@@ -68,6 +68,34 @@
   .resumo div{border:1px solid var(--borda);border-radius:8px;padding:8px 14px;text-align:center;min-width:80px}
   .resumo b{display:block;font-size:1.5rem}
   .scroll-x{overflow-x:auto}
+
+  /* Ficha para impressão */
+  #ficha{display:none}
+  .ficha{font-family:system-ui,Arial,sans-serif;color:#000;font-size:11pt}
+  .ficha h1{margin:0;font-size:18pt;text-align:center}
+  .ficha .sub{text-align:center;margin:2px 0 14px;font-size:10pt}
+  .ficha table{width:100%;border-collapse:collapse;margin-bottom:12px}
+  .ficha th,.ficha td{border:1px solid #333;padding:5px 8px;text-align:left;color:#000;font-size:10.5pt}
+  .ficha th{background:#e8e8e8;width:18%}
+  .ficha .sent-tab th{width:auto;background:#d8d8d8}
+  .ficha td.c,.ficha .sent-tab th.c{text-align:center}
+  .ficha tr.marcada td{font-weight:700;background:#f1f1f1}
+  .ficha tr.total td{font-weight:800;font-size:12pt}
+  .ficha .final{display:flex;align-items:center;gap:16px;margin:6px 0 22px}
+  .ficha .risco-final{display:inline-block;padding:8px 18px;border-radius:8px;font-weight:700;font-size:14pt}
+  .ficha .faixas{width:auto;margin:0}
+  .ficha .assin{display:flex;gap:40px;margin-top:46px}
+  .ficha .assin div{flex:1;border-top:1px solid #000;text-align:center;font-size:9.5pt;padding-top:4px}
+  .ficha .rodape{margin-top:18px;font-size:8.5pt;color:#333}
+  @media print{
+    @page{size:A4;margin:14mm}
+    body{background:#fff}
+    header,main{display:none!important}
+    #ficha{display:block}
+    .ficha{break-after:page;page-break-after:always}
+    .ficha:last-child{break-after:auto;page-break-after:auto}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
 </style>
 </head>
 <body>
@@ -151,6 +179,7 @@
       </div>
       <div class="acoes">
         <button class="primario" id="btn-salvar">Salvar planilha</button>
+        <button class="secundario" id="btn-imprimir-todas">Imprimir todas as fichas</button>
         <button class="secundario" id="btn-nova">Nova planilha</button>
       </div>
       <div id="msg-app" class="msg"></div>
@@ -173,6 +202,8 @@
     <p>Preencha <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> no arquivo <code>config.js</code>.</p>
   </div>
 </main>
+
+<div id="ficha"></div>
 
 <script>
 /* ========= CONFIGURAÇÃO (chaves ficam no config.js) ========= */
@@ -350,7 +381,8 @@ function renderLista(){
     const ta = document.createElement('td'); ta.style.whiteSpace='nowrap';
     const be = document.createElement('button'); be.className='secundario pequeno'; be.textContent='Editar'; be.onclick=()=>editar(i);
     const bx = document.createElement('button'); bx.className='perigo'; bx.textContent='Remover'; bx.style.marginLeft='6px'; bx.onclick=()=>remover(i);
-    ta.appendChild(be); ta.appendChild(bx); tr.appendChild(ta);
+    const bi = document.createElement('button'); bi.className='secundario pequeno'; bi.textContent='Imprimir'; bi.style.marginLeft='6px'; bi.onclick=()=>imprimir([f]);
+    ta.appendChild(be); ta.appendChild(bi); ta.appendChild(bx); tr.appendChild(ta);
     tb.appendChild(tr);
   });
   const box = $('resumo'); box.innerHTML = '';
@@ -367,6 +399,89 @@ function novaPlanilha(){
   planilhaId = null;
   $('data').value = hoje(); $('acs').value=''; $('rua').value=''; $('microarea').value='';
   familias = []; limparForm(); renderLista(); sujo = false; msg('msg-app','');
+}
+
+/* ========= IMPRESSÃO ========= */
+function el(tag, cls, txt){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(txt !== undefined && txt !== null) e.textContent = txt;
+  return e;
+}
+function dataBR(iso){ if(!iso) return ''; const [a,m,d] = iso.split('-'); return d+'/'+m+'/'+a; }
+
+function montarFicha(f){
+  const c = calcular(f);
+  const ficha = el('section','ficha');
+  ficha.appendChild(el('h1',null,'Ficha de Risco Familiar'));
+  ficha.appendChild(el('div','sub','Escala de risco familiar de Coelho-Savassi'));
+
+  const ident = el('table','ident');
+  const linha = pares => {
+    const tr = el('tr');
+    pares.forEach(([k,v])=>{ tr.appendChild(el('th',null,k)); tr.appendChild(el('td',null,v ?? '')); });
+    ident.appendChild(tr);
+  };
+  linha([['Data', dataBR($('data').value)], ['ACS', $('acs').value.trim()]]);
+  linha([['Rua / localidade', $('rua').value.trim()], ['Microárea', $('microarea').value.trim()]]);
+  linha([['Prontuário', f.prontuario], ['Família / responsável', f.nome]]);
+  linha([['Nº de moradores', f.moradores], ['Nº de cômodos', f.comodos]]);
+  ficha.appendChild(ident);
+
+  const t = el('table','sent-tab');
+  const hr = el('tr');
+  [['Sentinela de risco',''],['Pontos por pessoa','c'],['Nº de pessoas','c'],['Pontos','c']].forEach(([h,cl])=> hr.appendChild(el('th',cl,h)));
+  const thead = el('thead'); thead.appendChild(hr); t.appendChild(thead);
+
+  const tb = el('tbody');
+  SENTINELAS.forEach(s=>{
+    const q = f.qtd[s.id] || 0;
+    const tr = el('tr', q > 0 ? 'marcada' : '');
+    tr.appendChild(el('td',null,s.nome));
+    tr.appendChild(el('td','c',s.pts));
+    tr.appendChild(el('td','c',q));
+    tr.appendChild(el('td','c',q * s.pts));
+    tb.appendChild(tr);
+  });
+  const rz = el('tr', c.ptsMoradia > 0 ? 'marcada' : '');
+  rz.appendChild(el('td',null,'Relação morador/cômodo' + (c.razao === null ? '' : ' = ' + fmt(c.razao)) + '  (maior que 1 = 3 · igual a 1 = 2 · menor que 1 = 0)'));
+  rz.appendChild(el('td','c','—'));
+  rz.appendChild(el('td','c','—'));
+  rz.appendChild(el('td','c',c.ptsMoradia));
+  tb.appendChild(rz);
+  const tot = el('tr','total');
+  const tdt = el('td',null,'Pontuação total'); tdt.colSpan = 3; tot.appendChild(tdt);
+  tot.appendChild(el('td','c',c.total));
+  tb.appendChild(tot);
+  t.appendChild(tb);
+  ficha.appendChild(t);
+
+  const fin = el('div','final');
+  fin.appendChild(el('strong',null,'Risco familiar:'));
+  fin.appendChild(el('span','risco-final ' + c.risco.css, c.risco.cod + ' – ' + NOMES_RISCO[c.risco.cod]));
+  const fx = el('table','faixas');
+  [['0 a 4','RH – Risco habitual'],['5 a 6','R1 – Risco menor'],['7 a 8','R2 – Risco médio'],['9 ou mais','R3 – Risco máximo']].forEach(([a,b])=>{
+    const tr = el('tr'); tr.appendChild(el('td',null,a)); tr.appendChild(el('td',null,b)); fx.appendChild(tr);
+  });
+  fin.appendChild(fx);
+  ficha.appendChild(fin);
+
+  const as = el('div','assin');
+  as.appendChild(el('div',null,'Assinatura do ACS'));
+  as.appendChild(el('div',null,'Assinatura do(a) responsável'));
+  ficha.appendChild(as);
+
+  ficha.appendChild(el('div','rodape',
+    'Impresso em ' + new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}) +
+    '. Fonte: Savassi LC, Lage JL, Coelho FL. Sistematização de um instrumento de estratificação de risco familiar: Escala de risco familiar de Coelho-Savassi. J Manag Prim Health Care. 2012;3(2):179-85.'));
+  return ficha;
+}
+
+function imprimir(lista){
+  if(!lista.length){ msg('msg-app','Não há famílias para imprimir.','erro'); return; }
+  const box = $('ficha'); box.innerHTML = '';
+  lista.forEach(f => box.appendChild(montarFicha(f)));
+  window.print();
 }
 
 /* ========= SUPABASE ========= */
@@ -477,6 +592,7 @@ async function entrar(){
   $('btn-limpar').onclick = ()=>{ const eraEdicao = editando !== null; preencherForm({}); msg('msg-form',''); if(eraEdicao){ /* mantém em edição, só zera os campos */ } };
   $('btn-salvar').onclick = salvar;
   $('btn-nova').onclick = ()=>{ if(!sujo || confirm('Descartar o que está na tela e começar uma planilha nova?')) novaPlanilha(); };
+  $('btn-imprimir-todas').onclick = ()=>imprimir(familias);
   $('btn-entrar').onclick = entrar;
   $('senha').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
   window.addEventListener('beforeunload', e=>{ if(sujo){ e.preventDefault(); e.returnValue=''; } });
