@@ -3,609 +3,144 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pontuação de Risco Familiar</title>
+<title>Portal ACS</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <style>
   :root{
-    --verde:#00563f; --verde-claro:#e3efe9; --cinza:#f4f6f5; --borda:#d5ddd9; --texto:#1c2b25;
-    --rh:#3b9ae1; --r1:#4c9a2a; --r2:#f2b705; --r3:#9b2335;
+    --fundo:#eef2f7; --texto:#111827; --mudo:#5b6677; --borda:#d9e0ea; --branco:#fff;
+    --verde:#1b6e2a; --verde-bg:#e4f3e6; --verde-bd:#a9d5b0;
+    --roxo:#6d2a8a; --roxo-bg:#f3e8f8; --roxo-bd:#d3b2e3;
+    --perigo:#9b2335;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--cinza);color:var(--texto)}
-  header{background:var(--verde);color:#fff;padding:18px 16px}
-  header h1{margin:0;font-size:1.2rem}
-  header p{margin:4px 0 0;font-size:.85rem;opacity:.85}
-  main{max-width:760px;margin:0 auto;padding:16px}
-  .card{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:16px;margin-bottom:16px}
-  h2{margin:0 0 12px;font-size:1.05rem;color:var(--verde)}
-  h3{margin:18px 0 8px;font-size:.95rem;color:var(--verde)}
-  label{display:block;font-size:.8rem;font-weight:600;margin-bottom:4px}
-  input[type=text],input[type=email],input[type=password],input[type=number],input[type=date]{
-    width:100%;padding:10px;border:1px solid var(--borda);border-radius:8px;font-size:1rem;background:#fff}
-  .g2{display:grid;grid-template-columns:1fr 2fr;gap:12px}
-  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-  .g4{display:grid;grid-template-columns:150px 1fr 1fr 110px;gap:12px}
-  @media(max-width:620px){.g2,.g3{grid-template-columns:1fr}.g4{grid-template-columns:1fr 1fr}}
-  button{cursor:pointer;border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:600}
-  .primario{background:var(--verde);color:#fff}
-  .secundario{background:#fff;color:var(--verde);border:1px solid var(--verde)}
-  .perigo{background:#fff;color:var(--r3);border:1px solid var(--r3);padding:5px 10px;font-size:.8rem}
-  .pequeno{padding:5px 10px;font-size:.8rem}
-  .acoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-  .msg{margin-top:10px;font-size:.9rem}
-  .msg.erro{color:var(--r3)} .msg.ok{color:var(--r1)}
-  .nota{font-size:.78rem;color:#55645d}
-  .topo{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--fundo);color:var(--texto)}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 16px 40px}
+  header{text-align:center;margin-bottom:28px}
+  header h1{margin:0;font-size:1.7rem;letter-spacing:-.01em}
+  header p{margin:6px 0 0;color:var(--mudo);font-size:.95rem}
+  .titulo-sec{text-align:center;font-size:.72rem;font-weight:700;letter-spacing:.14em;color:var(--mudo);margin:0 0 16px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+
+  a.mod{display:flex;flex-direction:column;background:var(--branco);border-radius:20px;padding:28px 28px 24px;text-decoration:none;color:inherit;
+    border-top:5px solid var(--c);box-shadow:0 4px 14px rgba(17,24,39,.07);transition:transform .15s,box-shadow .15s}
+  a.mod:hover,a.mod:focus-visible{transform:translateY(-4px);box-shadow:0 10px 24px rgba(17,24,39,.13);outline:none}
+  .ico{width:60px;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.9rem;
+    background:var(--bg);border:1px solid var(--bd);margin-bottom:18px}
+  a.mod h2{margin:0 0 10px;font-size:1.2rem;line-height:1.25}
+  a.mod p{margin:0 0 16px;color:var(--mudo);font-size:.92rem;line-height:1.55;flex:1}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+  .tag{font-size:.7rem;font-weight:700;border-radius:999px;padding:3px 11px;border:1px solid}
+  .t-rh{color:#2b7bb5;background:#e6f2fb;border-color:#a7cbe6}
+  .t-r1{color:#2e7d32;background:#e8f5e9;border-color:#a9d5ad}
+  .t-r2{color:#b58300;background:#fff7dc;border-color:#f0d37a}
+  .t-r3{color:#9b2335;background:#fde8eb;border-color:#eba9b3}
+  .t-nao{color:#2e7d32;background:#e8f5e9;border-color:#a9d5ad}
+  .t-tri{color:#b58300;background:#fff7dc;border-color:#f0d37a}
+  .t-eleg{color:#6d2a8a;background:#f3e8f8;border-color:#d3b2e3}
+  .go{font-weight:700;font-size:.92rem;color:var(--c)}
+  .m-risco{--c:var(--verde);--bg:var(--verde-bg);--bd:var(--verde-bd)}
+  .m-pal{--c:var(--roxo);--bg:var(--roxo-bg);--bd:var(--roxo-bd)}
+
+  .box{background:var(--branco);border:1px solid var(--borda);border-radius:14px;padding:22px;max-width:480px;margin:0 auto}
+  .box h2{margin:0 0 12px;font-size:1.1rem}
+  label{display:block;font-size:.8rem;font-weight:600;margin:10px 0 4px}
+  input{width:100%;padding:11px;border:1px solid var(--borda);border-radius:10px;font-size:1rem}
+  button{cursor:pointer;border:0;border-radius:10px;padding:12px 18px;font-size:1rem;font-weight:700;background:var(--verde);color:#fff;margin-top:14px}
+  button.sec{background:#fff;color:var(--verde);border:1px solid var(--verde);padding:6px 12px;font-size:.82rem;margin:0}
+  .msg{margin-top:10px;font-size:.9rem;color:var(--perigo)}
+  .topo{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:22px;font-size:.85rem;color:var(--mudo)}
+  .rodape{text-align:center;margin-top:30px;font-size:.8rem}
+  .rodape a{color:var(--mudo)}
   .hidden{display:none}
-
-  /* Sentinelas na vertical */
-  .sent{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--borda);border-radius:8px;margin-bottom:8px}
-  .sent.on{background:var(--verde-claro);border-color:var(--verde)}
-  .sent .nome{font-weight:600}
-  .sent .chip{margin-left:8px;background:var(--verde-claro);color:var(--verde);font-weight:700;border-radius:999px;padding:1px 9px;font-size:.75rem;white-space:nowrap}
-  .sent.on .chip{background:#fff}
-  .sent .desc{font-size:.76rem;color:#55645d;margin-top:2px}
-  .stepper{display:flex;align-items:center;gap:6px;flex-shrink:0}
-  .stepper button{width:40px;height:40px;padding:0;font-size:1.3rem;line-height:1;background:#fff;color:var(--verde);border:1px solid var(--verde)}
-  .stepper input{width:58px;text-align:center;font-size:1.1rem;font-weight:700;padding:8px 4px}
-  .stepper input.alerta{border-color:var(--r3);background:#fdecec}
-
-  /* Resultado */
-  .resultado{display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--cinza);border:1px solid var(--borda);border-radius:10px;padding:14px;margin-top:16px}
-  .score{font-size:2.6rem;font-weight:800;line-height:1}
-  .badge,.tag{display:inline-block;color:#fff;font-weight:700;border-radius:8px}
-  .badge{padding:8px 16px;font-size:1.05rem}
-  .tag{padding:3px 10px;font-size:.85rem}
-  .rh{background:var(--rh)} .r1{background:var(--r1)} .r2{background:var(--r2);color:#1c2b25} .r3{background:var(--r3)}
-
-  /* Lista de famílias */
-  table{width:100%;border-collapse:collapse;font-size:.9rem}
-  th,td{text-align:left;padding:8px;border-bottom:1px solid var(--borda)}
-  th{color:var(--verde)}
-  td.c,th.c{text-align:center}
-  .resumo{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-  .resumo div{border:1px solid var(--borda);border-radius:8px;padding:8px 14px;text-align:center;min-width:80px}
-  .resumo b{display:block;font-size:1.5rem}
-  .scroll-x{overflow-x:auto}
-
-  /* Ficha para impressão */
-  #ficha{display:none}
-  .ficha{font-family:system-ui,Arial,sans-serif;color:#000;font-size:11pt}
-  .ficha h1{margin:0;font-size:18pt;text-align:center}
-  .ficha .sub{text-align:center;margin:2px 0 14px;font-size:10pt}
-  .ficha table{width:100%;border-collapse:collapse;margin-bottom:12px}
-  .ficha th,.ficha td{border:1px solid #333;padding:5px 8px;text-align:left;color:#000;font-size:10.5pt}
-  .ficha th{background:#e8e8e8;width:18%}
-  .ficha .sent-tab th{width:auto;background:#d8d8d8}
-  .ficha td.c,.ficha .sent-tab th.c{text-align:center}
-  .ficha tr.marcada td{font-weight:700;background:#f1f1f1}
-  .ficha tr.total td{font-weight:800;font-size:12pt}
-  .ficha .final{display:flex;align-items:center;gap:16px;margin:6px 0 22px}
-  .ficha .risco-final{display:inline-block;padding:8px 18px;border-radius:8px;font-weight:700;font-size:14pt}
-  .ficha .faixas{width:auto;margin:0}
-  .ficha .assin{display:flex;gap:40px;margin-top:46px}
-  .ficha .assin div{flex:1;border-top:1px solid #000;text-align:center;font-size:9.5pt;padding-top:4px}
-  .ficha .rodape{margin-top:18px;font-size:8.5pt;color:#333}
-  @media print{
-    @page{size:A4;margin:14mm}
-    body{background:#fff}
-    header,main{display:none!important}
-    #ficha{display:block}
-    .ficha{break-after:page;page-break-after:always}
-    .ficha:last-child{break-after:auto;page-break-after:auto}
-    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  }
 </style>
 </head>
 <body>
-<header>
-  <h1>Pontuação de Risco Familiar — Escala de Coelho-Savassi</h1>
-  <p>Planilha por agente comunitário e microárea, com cálculo automático de escore e risco</p>
-</header>
+<div class="wrap">
+  <header>
+    <h1>Portal ACS</h1>
+    <p>Estratificação e acompanhamento na atenção primária</p>
+  </header>
 
-<main>
   <!-- LOGIN -->
-  <section id="tela-login" class="card hidden">
+  <section id="tela-login" class="box hidden">
     <h2>Acesso</h2>
-    <div class="g2" style="grid-template-columns:1fr 1fr">
-      <div><label for="email">E-mail</label><input type="email" id="email" autocomplete="username"></div>
-      <div><label for="senha">Senha</label><input type="password" id="senha" autocomplete="current-password"></div>
-    </div>
-    <div class="acoes"><button class="primario" id="btn-entrar">Entrar</button></div>
+    <label for="email">E-mail</label>
+    <input type="email" id="email" autocomplete="username">
+    <label for="senha">Senha</label>
+    <input type="password" id="senha" autocomplete="current-password">
+    <button id="btn-entrar">Entrar</button>
     <div id="msg-login" class="msg"></div>
   </section>
 
-  <!-- APP -->
-  <section id="tela-app" class="hidden">
+  <!-- MÓDULOS -->
+  <section id="tela-modulos" class="hidden">
     <div class="topo">
-      <span><span id="usuario" class="nota"></span> · <a href="paliativos.html" style="color:var(--verde);font-weight:600">Cuidados paliativos</a></span>
-      <button class="secundario pequeno" id="btn-sair">Sair</button>
+      <span id="usuario"></span>
+      <button class="sec" id="btn-sair">Sair</button>
     </div>
 
-    <div class="card">
-      <h2>1. Identificação da planilha</h2>
-      <div class="g4">
-        <div><label for="data">Data</label><input type="date" id="data"></div>
-        <div><label for="acs">ACS</label><input type="text" id="acs" placeholder="Nome do agente"></div>
-        <div><label for="rua">Rua / localidade</label><input type="text" id="rua"></div>
-        <div><label for="microarea">Microárea</label><input type="text" id="microarea" placeholder="Ex.: 13"></div>
-      </div>
+    <p class="titulo-sec">MÓDULOS DISPONÍVEIS</p>
+    <div class="cards">
+      <a class="mod m-risco" href="risco.html">
+        <div class="ico" aria-hidden="true">🏠</div>
+        <h2>Pontuação de Risco Familiar</h2>
+        <p>Planilha por ACS e microárea com a escala de Coelho-Savassi: sentinelas por pessoa, relação morador/cômodo, escore e risco calculados automaticamente.</p>
+        <div class="tags">
+          <span class="tag t-rh">RH</span><span class="tag t-r1">R1</span><span class="tag t-r2">R2</span><span class="tag t-r3">R3</span>
+        </div>
+        <span class="go">Iniciar ficha →</span>
+      </a>
+
+      <a class="mod m-pal" href="paliativos.html">
+        <div class="ico" aria-hidden="true">🕊️</div>
+        <h2>Cuidados Paliativos</h2>
+        <p>Elegibilidade simplificada para o ACS e SPICT-BR para a equipe, com cálculo automático de elegibilidade para abordagem paliativa.</p>
+        <div class="tags">
+          <span class="tag t-nao">Sem indicativo</span><span class="tag t-tri">Triagem positiva</span><span class="tag t-eleg">Elegível</span>
+        </div>
+        <span class="go">Iniciar ficha →</span>
+      </a>
     </div>
 
-    <div class="card">
-      <h2 id="titulo-form">2. Dados da família</h2>
-      <div class="g2">
-        <div><label for="f-pront">Prontuário</label><input type="text" id="f-pront"></div>
-        <div><label for="f-nome">Família / responsável</label><input type="text" id="f-nome" placeholder="Nome"></div>
-      </div>
-
-      <h3>Moradia</h3>
-      <div class="g3">
-        <div><label for="f-mor">Nº de moradores</label><input type="number" id="f-mor" min="0" inputmode="numeric"></div>
-        <div><label for="f-com">Nº de cômodos</label><input type="number" id="f-com" min="0" inputmode="numeric"></div>
-        <div><label>Morador ÷ cômodo</label><div id="razao" style="padding:10px 0;font-weight:700">—</div></div>
-      </div>
-      <div class="nota" style="margin-top:6px">
-        Maior que 1 = 3 pontos · igual a 1 = 2 pontos · menor que 1 = 0 ponto. Cômodos: todos os compartimentos do domicílio separados por paredes,
-        inclusive banheiro e cozinha; não contam corredores, alpendres, varandas abertas, garagens e depósitos.
-      </div>
-
-      <h3>Sentinelas de risco <span class="nota" style="font-weight:400">— quantas pessoas da casa se enquadram?</span></h3>
-      <div id="lista-sentinelas"></div>
-
-      <div class="resultado">
-        <div><div class="nota">Pontuação</div><div class="score" id="f-total">0</div></div>
-        <div class="badge rh" id="f-risco">RH – Risco habitual</div>
-        <div class="nota" id="f-detalhe"></div>
-      </div>
-
-      <div class="acoes">
-        <button class="primario" id="btn-add">Adicionar à planilha</button>
-        <button class="secundario" id="btn-cancelar">Cancelar edição</button>
-        <button class="secundario" id="btn-limpar">Limpar campos</button>
-      </div>
-      <div id="msg-form" class="msg"></div>
-    </div>
-
-    <div class="card">
-      <h2>3. Famílias da planilha</h2>
-      <div class="resumo" id="resumo"></div>
-      <div class="scroll-x">
-        <table>
-          <thead><tr><th class="c">Nº</th><th>Prontuário</th><th>Família / responsável</th><th class="c">Pontos</th><th class="c">Risco</th><th></th></tr></thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-      <div class="acoes">
-        <button class="primario" id="btn-salvar">Salvar planilha</button>
-        <button class="secundario" id="btn-imprimir-todas">Imprimir todas as fichas</button>
-        <button class="secundario" id="btn-nova">Nova planilha</button>
-      </div>
-      <div id="msg-app" class="msg"></div>
-      <div class="nota" style="margin-top:10px">Classificação: 0 a 4 = RH (risco habitual) · 5 ou 6 = R1 (risco menor) · 7 ou 8 = R2 (risco médio) · 9 ou mais = R3 (risco máximo).</div>
-    </div>
-
-    <div class="card">
-      <h2>Planilhas salvas</h2>
-      <div class="scroll-x">
-        <table>
-          <thead><tr><th>Data</th><th>ACS</th><th>Rua / localidade</th><th>Microárea</th><th class="c">Famílias</th><th class="c">RH</th><th class="c">R1</th><th class="c">R2</th><th class="c">R3</th><th></th></tr></thead>
-          <tbody id="lista"></tbody>
-        </table>
-      </div>
-    </div>
+    <div class="rodape"><a href="gestor.html">Área do gestor</a></div>
   </section>
 
-  <div id="aviso-config" class="card hidden">
+  <div id="aviso-config" class="box hidden">
     <h2>Configuração pendente</h2>
     <p>Preencha <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> no arquivo <code>config.js</code>.</p>
   </div>
-</main>
-
-<div id="ficha"></div>
+</div>
 
 <script>
-/* ========= CONFIGURAÇÃO (chaves ficam no config.js) ========= */
 const CFG = window.APP_CONFIG || {};
-const SUPABASE_URL = CFG.SUPABASE_URL || 'COLE_AQUI_A_URL_DO_PROJETO';
-const SUPABASE_ANON_KEY = CFG.SUPABASE_ANON_KEY || 'COLE_AQUI_A_ANON_KEY';
-
-/* Relação morador/cômodo = moradores ÷ cômodos */
-const PONTOS_RAZAO = { maior: 3, igual: 2, menor: 0 };
-
-/* ========= ESCALA ========= */
-const SENTINELAS = [
-  {id:'acamado',           nome:'Acamado / domiciliado',            pts:3, desc:'Pessoa restrita ao domicílio, sem capacidade de locomoção por si só a qualquer unidade de saúde.'},
-  {id:'deficiencia_fisica',nome:'Deficiência física',               pts:3, desc:'Condição física de longa duração ou permanente que dificulta ou impede atividades cotidianas, escolares, de trabalho ou lazer.'},
-  {id:'deficiencia_mental',nome:'Deficiência mental',               pts:3, desc:'Condição mental de longa duração ou permanente que dificulta ou impede atividades cotidianas, escolares, de trabalho ou lazer.'},
-  {id:'baixas_condicoes',  nome:'Baixas condições socioeconômicas', pts:3, desc:'Baixas condições de saneamento: falta de controle dos fatores do meio físico que podem exercer efeitos prejudiciais à saúde.'},
-  {id:'desnutricao',       nome:'Desnutrição grave',                pts:3, desc:'Percentil menor que 0,1 e peso muito baixo para a idade.'},
-  {id:'drogadicao',        nome:'Drogadição',                       pts:2, desc:'Uso compulsivo de drogas lícitas ou ilícitas com potencial de dependência (álcool, tabaco, benzodiazepínicos, barbitúricos e ilícitas).'},
-  {id:'desemprego',        nome:'Desemprego',                       pts:2, desc:'Pessoa sem nenhuma ocupação. Tarefas domésticas contam como ocupação.'},
-  {id:'analfabetismo',     nome:'Analfabetismo',                    pts:1, desc:'A partir da idade escolar, não sabe ler nem escrever um bilhete, e/ou só sabe assinar o nome.'},
-  {id:'menor_6_meses',     nome:'Menores de 6 meses',               pts:1, desc:'Lactente com até 5 meses e 29 dias.'},
-  {id:'maior_70_anos',     nome:'Maiores de 70 anos',               pts:1, desc:'Pessoa com mais de 70 anos completos.'},
-  {id:'hipertensao',       nome:'Hipertensão',                      pts:1, desc:'PAS ≥ 140 mmHg e PAD ≥ 90 mmHg em indivíduos que não usam anti-hipertensivo.'},
-  {id:'diabetes',          nome:'Diabetes',                         pts:1, desc:'Doenças metabólicas caracterizadas por hiperglicemia e associadas a complicações e disfunções de vários órgãos.'}
-];
-const NOMES_RISCO = {RH:'Risco habitual', R1:'Risco menor', R2:'Risco médio', R3:'Risco máximo'};
-
-function pontosRazao(mor, com){
-  if(!(mor > 0) || !(com > 0)) return {pts:0, razao:null};
-  const pts = mor > com ? PONTOS_RAZAO.maior : (mor === com ? PONTOS_RAZAO.igual : PONTOS_RAZAO.menor);
-  return {pts, razao: mor / com};
-}
-function classificar(total){
-  if(total >= 9) return {cod:'R3', css:'r3'};
-  if(total >= 7) return {cod:'R2', css:'r2'};
-  if(total >= 5) return {cod:'R1', css:'r1'};
-  return {cod:'RH', css:'rh'};
-}
-function calcular(d){
-  let pSent = 0;
-  SENTINELAS.forEach(s => pSent += (d.qtd[s.id] || 0) * s.pts);
-  const pr = pontosRazao(d.moradores || 0, d.comodos || 0);
-  const total = pSent + pr.pts;
-  return {total, pSent, ptsMoradia: pr.pts, razao: pr.razao, risco: classificar(total)};
-}
-
-/* ========= ESTADO ========= */
+const SUPABASE_URL = 'https://qnonohzczdvowkssjyaa.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_CKcc-9TIe0puzdeYA9D6qg_N6MslJEj';
 const $ = id => document.getElementById(id);
 let sb = null;
-let planilhaId = null;
-let familias = [];      // {prontuario, nome, moradores, comodos, qtd:{id:n}}
-let editando = null;    // índice em edição
-let sujo = false;       // há alterações não salvas
-const inputs = {};      // inputs das sentinelas
 
-const num = v => { const n = Math.floor(Number(v)); return n > 0 ? n : 0; };
-const fmt = n => n.toFixed(2).replace('.', ',');
-function msg(id, texto, tipo){ const el=$(id); el.textContent=texto||''; el.className='msg '+(tipo||''); }
-
-/* ========= FORMULÁRIO DA FAMÍLIA ========= */
-function montarSentinelas(){
-  const box = $('lista-sentinelas');
-  SENTINELAS.forEach(s=>{
-    const row = document.createElement('div'); row.className='sent'; row.id='sent-'+s.id;
-
-    const info = document.createElement('div');
-    const nome = document.createElement('div'); nome.className='nome'; nome.textContent = s.nome;
-    const chip = document.createElement('span'); chip.className='chip';
-    chip.textContent = s.pts + (s.pts===1 ? ' ponto' : ' pontos') + ' por pessoa';
-    nome.appendChild(chip);
-    const desc = document.createElement('div'); desc.className='desc'; desc.textContent = s.desc;
-    info.appendChild(nome); info.appendChild(desc);
-
-    const step = document.createElement('div'); step.className='stepper';
-    const bm = document.createElement('button'); bm.type='button'; bm.textContent='−'; bm.setAttribute('aria-label','menos um');
-    const inp = document.createElement('input'); inp.type='number'; inp.min=0; inp.step=1; inp.inputMode='numeric'; inp.placeholder='0';
-    const bp = document.createElement('button'); bp.type='button'; bp.textContent='+'; bp.setAttribute('aria-label','mais um');
-    bm.onclick = ()=>{ const n = Math.max(0, num(inp.value) - 1); inp.value = n || ''; atualizarForm(); };
-    bp.onclick = ()=>{ inp.value = num(inp.value) + 1; atualizarForm(); };
-    inp.addEventListener('input', atualizarForm);
-    step.appendChild(bm); step.appendChild(inp); step.appendChild(bp);
-
-    row.appendChild(info); row.appendChild(step); box.appendChild(row);
-    inputs[s.id] = inp;
-  });
-}
-
-function lerForm(){
-  const qtd = {};
-  SENTINELAS.forEach(s => qtd[s.id] = num(inputs[s.id].value));
-  return {
-    prontuario: $('f-pront').value.trim(),
-    nome: $('f-nome').value.trim(),
-    moradores: $('f-mor').value !== '' ? num($('f-mor').value) : null,
-    comodos: $('f-com').value !== '' ? num($('f-com').value) : null,
-    qtd
-  };
-}
-
-function atualizarForm(){
-  const d = lerForm(), c = calcular(d);
-  SENTINELAS.forEach(s=>{
-    const q = d.qtd[s.id];
-    $('sent-'+s.id).classList.toggle('on', q > 0);
-    inputs[s.id].classList.toggle('alerta', d.moradores > 0 && q > d.moradores);
-  });
-  $('razao').textContent = c.razao === null ? '—' : fmt(c.razao) + ' → ' + c.ptsMoradia + (c.ptsMoradia===1 ? ' ponto' : ' pontos');
-  $('f-total').textContent = c.total;
-  const b = $('f-risco'); b.className = 'badge ' + c.risco.css; b.textContent = c.risco.cod + ' – ' + NOMES_RISCO[c.risco.cod];
-  $('f-detalhe').textContent = 'Sentinelas: ' + c.pSent + ' · Morador/cômodo: ' + c.ptsMoradia;
-}
-
-function preencherForm(d){
-  $('f-pront').value = d.prontuario || '';
-  $('f-nome').value = d.nome || '';
-  $('f-mor').value = d.moradores ?? '';
-  $('f-com').value = d.comodos ?? '';
-  SENTINELAS.forEach(s => { const q = (d.qtd && d.qtd[s.id]) || 0; inputs[s.id].value = q > 0 ? q : ''; });
-  atualizarForm();
-}
-
-function limparForm(){
-  editando = null;
-  preencherForm({});
-  $('titulo-form').textContent = '2. Dados da família';
-  $('btn-add').textContent = 'Adicionar à planilha';
-  $('btn-cancelar').classList.add('hidden');
-  msg('msg-form','');
-}
-
-function adicionar(){
-  const d = lerForm();
-  if(!d.nome){ msg('msg-form','Informe o nome da família / responsável.','erro'); return; }
-  const aviso = (d.moradores > 0 && SENTINELAS.some(s => d.qtd[s.id] > d.moradores));
-  if(editando !== null) familias[editando] = d; else familias.push(d);
-  sujo = true;
-  limparForm();
-  renderLista();
-  msg('msg-form', aviso ? 'Família salva, mas alguma sentinela tem mais pessoas que o total de moradores. Confira.' : 'Família adicionada à planilha.', aviso ? 'erro' : 'ok');
-  $('f-pront').focus();
-}
-
-function editar(i){
-  editando = i;
-  preencherForm(familias[i]);
-  $('titulo-form').textContent = '2. Editando a família nº ' + (i+1);
-  $('btn-add').textContent = 'Atualizar família';
-  $('btn-cancelar').classList.remove('hidden');
-  msg('msg-form','');
-  $('titulo-form').scrollIntoView({behavior:'smooth', block:'start'});
-}
-
-function remover(i){
-  if(!confirm('Remover a família "' + familias[i].nome + '" da planilha?')) return;
-  if(editando === i) limparForm(); else if(editando !== null && editando > i) editando--;
-  familias.splice(i,1); sujo = true; renderLista();
-}
-
-/* ========= LISTA DE FAMÍLIAS ========= */
-function renderLista(){
-  const tb = $('tbody'); tb.innerHTML = '';
-  const cont = {RH:0, R1:0, R2:0, R3:0};
-  if(!familias.length){
-    const tr = document.createElement('tr'); const td = document.createElement('td');
-    td.colSpan = 6; td.textContent = 'Nenhuma família adicionada ainda.'; tr.appendChild(td); tb.appendChild(tr);
-  }
-  familias.forEach((f,i)=>{
-    const c = calcular(f); f.res = c; cont[c.risco.cod]++;
-    const tr = document.createElement('tr');
-    const cel = (txt, cls) => { const td=document.createElement('td'); if(cls) td.className=cls; td.textContent=txt; tr.appendChild(td); return td; };
-    cel(i+1,'c'); cel(f.prontuario||''); cel(f.nome);
-    const tp = cel(c.total,'c'); tp.style.fontWeight='800';
-    const tr2 = document.createElement('td'); tr2.className='c';
-    const tag = document.createElement('span'); tag.className='tag '+c.risco.css; tag.textContent=c.risco.cod; tr2.appendChild(tag); tr.appendChild(tr2);
-    const ta = document.createElement('td'); ta.style.whiteSpace='nowrap';
-    const be = document.createElement('button'); be.className='secundario pequeno'; be.textContent='Editar'; be.onclick=()=>editar(i);
-    const bx = document.createElement('button'); bx.className='perigo'; bx.textContent='Remover'; bx.style.marginLeft='6px'; bx.onclick=()=>remover(i);
-    const bi = document.createElement('button'); bi.className='secundario pequeno'; bi.textContent='Imprimir'; bi.style.marginLeft='6px'; bi.onclick=()=>imprimir([f]);
-    ta.appendChild(be); ta.appendChild(bi); ta.appendChild(bx); tr.appendChild(ta);
-    tb.appendChild(tr);
-  });
-  const box = $('resumo'); box.innerHTML = '';
-  [['Famílias',familias.length],['RH',cont.RH],['R1',cont.R1],['R2',cont.R2],['R3',cont.R3]].forEach(([t,v])=>{
-    const d = document.createElement('div'); d.innerHTML = '<b></b><span class="nota"></span>';
-    d.querySelector('b').textContent = v; d.querySelector('span').textContent = t; box.appendChild(d);
-  });
-  return {total: familias.length, ...cont};
-}
-
-function hoje(){ return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); }
-
-function novaPlanilha(){
-  planilhaId = null;
-  $('data').value = hoje(); $('acs').value=''; $('rua').value=''; $('microarea').value='';
-  familias = []; limparForm(); renderLista(); sujo = false; msg('msg-app','');
-}
-
-/* ========= IMPRESSÃO ========= */
-function el(tag, cls, txt){
-  const e = document.createElement(tag);
-  if(cls) e.className = cls;
-  if(txt !== undefined && txt !== null) e.textContent = txt;
-  return e;
-}
-function dataBR(iso){ if(!iso) return ''; const [a,m,d] = iso.split('-'); return d+'/'+m+'/'+a; }
-
-function montarFicha(f){
-  const c = calcular(f);
-  const ficha = el('section','ficha');
-  ficha.appendChild(el('h1',null,'Ficha de Risco Familiar'));
-  ficha.appendChild(el('div','sub','Escala de risco familiar de Coelho-Savassi'));
-
-  const ident = el('table','ident');
-  const linha = pares => {
-    const tr = el('tr');
-    pares.forEach(([k,v])=>{ tr.appendChild(el('th',null,k)); tr.appendChild(el('td',null,v ?? '')); });
-    ident.appendChild(tr);
-  };
-  linha([['Data', dataBR($('data').value)], ['ACS', $('acs').value.trim()]]);
-  linha([['Rua / localidade', $('rua').value.trim()], ['Microárea', $('microarea').value.trim()]]);
-  linha([['Prontuário', f.prontuario], ['Família / responsável', f.nome]]);
-  linha([['Nº de moradores', f.moradores], ['Nº de cômodos', f.comodos]]);
-  ficha.appendChild(ident);
-
-  const t = el('table','sent-tab');
-  const hr = el('tr');
-  [['Sentinela de risco',''],['Pontos por pessoa','c'],['Nº de pessoas','c'],['Pontos','c']].forEach(([h,cl])=> hr.appendChild(el('th',cl,h)));
-  const thead = el('thead'); thead.appendChild(hr); t.appendChild(thead);
-
-  const tb = el('tbody');
-  SENTINELAS.forEach(s=>{
-    const q = f.qtd[s.id] || 0;
-    const tr = el('tr', q > 0 ? 'marcada' : '');
-    tr.appendChild(el('td',null,s.nome));
-    tr.appendChild(el('td','c',s.pts));
-    tr.appendChild(el('td','c',q));
-    tr.appendChild(el('td','c',q * s.pts));
-    tb.appendChild(tr);
-  });
-  const rz = el('tr', c.ptsMoradia > 0 ? 'marcada' : '');
-  rz.appendChild(el('td',null,'Relação morador/cômodo' + (c.razao === null ? '' : ' = ' + fmt(c.razao)) + '  (maior que 1 = 3 · igual a 1 = 2 · menor que 1 = 0)'));
-  rz.appendChild(el('td','c','—'));
-  rz.appendChild(el('td','c','—'));
-  rz.appendChild(el('td','c',c.ptsMoradia));
-  tb.appendChild(rz);
-  const tot = el('tr','total');
-  const tdt = el('td',null,'Pontuação total'); tdt.colSpan = 3; tot.appendChild(tdt);
-  tot.appendChild(el('td','c',c.total));
-  tb.appendChild(tot);
-  t.appendChild(tb);
-  ficha.appendChild(t);
-
-  const fin = el('div','final');
-  fin.appendChild(el('strong',null,'Risco familiar:'));
-  fin.appendChild(el('span','risco-final ' + c.risco.css, c.risco.cod + ' – ' + NOMES_RISCO[c.risco.cod]));
-  const fx = el('table','faixas');
-  [['0 a 4','RH – Risco habitual'],['5 a 6','R1 – Risco menor'],['7 a 8','R2 – Risco médio'],['9 ou mais','R3 – Risco máximo']].forEach(([a,b])=>{
-    const tr = el('tr'); tr.appendChild(el('td',null,a)); tr.appendChild(el('td',null,b)); fx.appendChild(tr);
-  });
-  fin.appendChild(fx);
-  ficha.appendChild(fin);
-
-  const as = el('div','assin');
-  as.appendChild(el('div',null,'Assinatura do ACS'));
-  as.appendChild(el('div',null,'Assinatura do(a) responsável'));
-  ficha.appendChild(as);
-
-  ficha.appendChild(el('div','rodape',
-    'Impresso em ' + new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}) +
-    '. Fonte: Savassi LC, Lage JL, Coelho FL. Sistematização de um instrumento de estratificação de risco familiar: Escala de risco familiar de Coelho-Savassi. J Manag Prim Health Care. 2012;3(2):179-85.'));
-  return ficha;
-}
-
-function imprimir(lista){
-  if(!lista.length){ msg('msg-app','Não há famílias para imprimir.','erro'); return; }
-  const box = $('ficha'); box.innerHTML = '';
-  lista.forEach(f => box.appendChild(montarFicha(f)));
-  window.print();
-}
-
-/* ========= SUPABASE ========= */
-async function salvar(){
-  const data = $('data').value, acs = $('acs').value.trim();
-  if(!data || !acs){ msg('msg-app','Informe a data e o nome do ACS (passo 1).','erro'); return; }
-  if(!familias.length){ msg('msg-app','Adicione pelo menos uma família à planilha.','erro'); return; }
-  msg('msg-app','Salvando...');
-
-  const res = renderLista();
-  const cab = {
-    data, acs, rua:$('rua').value.trim()||null, microarea:$('microarea').value.trim()||null,
-    total_familias:res.total, qtd_rh:res.RH, qtd_r1:res.R1, qtd_r2:res.R2, qtd_r3:res.R3,
-    updated_at:new Date().toISOString()
-  };
-
-  let q;
-  if(planilhaId) q = await sb.from('planilhas_risco').update(cab).eq('id',planilhaId).select('id').single();
-  else q = await sb.from('planilhas_risco').insert(cab).select('id').single();
-  if(q.error){ msg('msg-app','Erro ao salvar a planilha: '+q.error.message,'erro'); return; }
-  planilhaId = q.data.id;
-
-  const del = await sb.from('familias_risco').delete().eq('planilha_id',planilhaId);
-  if(del.error){ msg('msg-app','Erro ao atualizar famílias: '+del.error.message,'erro'); return; }
-
-  const rows = familias.map((f,i)=>{
-    const c = calcular(f);
-    const o = {
-      planilha_id: planilhaId, ordem: i+1,
-      prontuario: f.prontuario || null, nome: f.nome,
-      moradores: f.moradores, comodos: f.comodos,
-      pontos_moradia: c.ptsMoradia, escore_total: c.total, risco: c.risco.cod
-    };
-    SENTINELAS.forEach(s => { o[s.id] = f.qtd[s.id] || 0; });
-    return o;
-  });
-  const ins = await sb.from('familias_risco').insert(rows);
-  if(ins.error){ msg('msg-app','Erro ao salvar famílias (os dados continuam na tela, tente de novo): '+ins.error.message,'erro'); return; }
-
-  sujo = false;
-  msg('msg-app','Planilha salva ('+rows.length+' famílias).','ok');
-  carregarLista();
-}
-
-async function carregarLista(){
-  const {data, error} = await sb.from('planilhas_risco')
-    .select('id,data,acs,rua,microarea,total_familias,qtd_rh,qtd_r1,qtd_r2,qtd_r3')
-    .order('data',{ascending:false}).order('created_at',{ascending:false}).limit(100);
-  const tb = $('lista'); tb.innerHTML='';
-  if(error){ msg('msg-app','Erro ao carregar planilhas: '+error.message,'erro'); return; }
-  if(!data.length){ tb.innerHTML='<tr><td colspan="10">Nenhuma planilha salva.</td></tr>'; return; }
-  data.forEach(p=>{
-    const tr = document.createElement('tr');
-    const [a,m,d] = p.data.split('-');
-    [[d+'/'+m+'/'+a],[p.acs],[p.rua||''],[p.microarea||''],[p.total_familias,'c'],[p.qtd_rh,'c'],[p.qtd_r1,'c'],[p.qtd_r2,'c'],[p.qtd_r3,'c']].forEach(([v,cls])=>{
-      const td=document.createElement('td'); if(cls) td.className=cls; td.textContent=v; tr.appendChild(td);
-    });
-    const td = document.createElement('td'); td.style.whiteSpace='nowrap';
-    const bo = document.createElement('button'); bo.className='secundario pequeno'; bo.textContent='Abrir';
-    bo.onclick = ()=>abrir(p.id);
-    const be = document.createElement('button'); be.className='perigo'; be.textContent='Excluir'; be.style.marginLeft='6px';
-    be.onclick = async ()=>{
-      if(!confirm('Excluir a planilha de '+p.acs+' ('+d+'/'+m+'/'+a+') e todas as suas famílias?')) return;
-      const r = await sb.from('planilhas_risco').delete().eq('id',p.id);
-      if(r.error) msg('msg-app','Erro ao excluir: '+r.error.message,'erro');
-      else { if(planilhaId===p.id) novaPlanilha(); carregarLista(); }
-    };
-    td.appendChild(bo); td.appendChild(be); tr.appendChild(td); tb.appendChild(tr);
-  });
-}
-
-async function abrir(id){
-  if(sujo && !confirm('Há alterações não salvas na tela. Abrir outra planilha mesmo assim?')) return;
-  msg('msg-app','Abrindo...');
-  const p = await sb.from('planilhas_risco').select('*').eq('id',id).single();
-  if(p.error){ msg('msg-app','Erro: '+p.error.message,'erro'); return; }
-  const f = await sb.from('familias_risco').select('*').eq('planilha_id',id).order('ordem');
-  if(f.error){ msg('msg-app','Erro: '+f.error.message,'erro'); return; }
-  planilhaId = id;
-  $('data').value=p.data.data; $('acs').value=p.data.acs; $('rua').value=p.data.rua||''; $('microarea').value=p.data.microarea||'';
-  familias = f.data.map(r=>{
-    const qtd = {}; SENTINELAS.forEach(s => qtd[s.id] = r[s.id] || 0);
-    return {prontuario:r.prontuario||'', nome:r.nome, moradores:r.moradores, comodos:r.comodos, qtd};
-  });
-  limparForm(); renderLista(); sujo = false;
-  msg('msg-app','Planilha carregada. Use "Editar" numa família para alterar.','ok');
-  $('tbody').scrollIntoView({behavior:'smooth', block:'start'});
-}
-
-/* ========= LOGIN ========= */
-function mostrar(logado, sessao){
-  $('tela-login').classList.toggle('hidden', logado);
-  $('tela-app').classList.toggle('hidden', !logado);
-  if(logado){ $('usuario').textContent = sessao.user.email; carregarLista(); }
+function mostrar(sessao){
+  $('tela-login').classList.toggle('hidden', !!sessao);
+  $('tela-modulos').classList.toggle('hidden', !sessao);
+  if(sessao) $('usuario').textContent = sessao.user.email;
 }
 async function entrar(){
-  msg('msg-login','');
+  $('msg-login').textContent = '';
   const {error} = await sb.auth.signInWithPassword({email:$('email').value.trim(), password:$('senha').value});
-  if(error) msg('msg-login','Falha no login: '+error.message,'erro');
+  if(error) $('msg-login').textContent = 'Falha no login: ' + error.message;
 }
 
 (async function init(){
-  montarSentinelas();
-  ['f-pront','f-nome','f-mor','f-com'].forEach(id => $(id).addEventListener('input', atualizarForm));
-  ['data','acs','rua','microarea'].forEach(id => $(id).addEventListener('input', ()=>{ sujo = true; }));
-  $('btn-add').onclick = adicionar;
-  $('btn-cancelar').onclick = limparForm;
-  $('btn-limpar').onclick = ()=>{ const eraEdicao = editando !== null; preencherForm({}); msg('msg-form',''); if(eraEdicao){ /* mantém em edição, só zera os campos */ } };
-  $('btn-salvar').onclick = salvar;
-  $('btn-nova').onclick = ()=>{ if(!sujo || confirm('Descartar o que está na tela e começar uma planilha nova?')) novaPlanilha(); };
-  $('btn-imprimir-todas').onclick = ()=>imprimir(familias);
-  $('btn-entrar').onclick = entrar;
-  $('senha').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
-  window.addEventListener('beforeunload', e=>{ if(sujo){ e.preventDefault(); e.returnValue=''; } });
-  novaPlanilha();
-
-  if(SUPABASE_URL.startsWith('COLE_') || SUPABASE_ANON_KEY.startsWith('COLE_')){
+  if(!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL.startsWith('COLE_') || SUPABASE_ANON_KEY.startsWith('COLE_')){
     $('aviso-config').classList.remove('hidden'); return;
   }
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  $('btn-sair').onclick = ()=>sb.auth.signOut();
-  sb.auth.onAuthStateChange((_ev, sessao)=> mostrar(!!sessao, sessao));
+  $('btn-entrar').onclick = entrar;
+  $('senha').addEventListener('keydown', e => { if(e.key === 'Enter') entrar(); });
+  $('btn-sair').onclick = () => sb.auth.signOut();
+  sb.auth.onAuthStateChange((_ev, sessao) => mostrar(sessao));
   const {data} = await sb.auth.getSession();
-  mostrar(!!data.session, data.session);
+  mostrar(data.session);
 })();
 </script>
 </body>
