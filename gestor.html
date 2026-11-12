@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Área do Gestor — Risco Familiar</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js"></script>
 <style>
   :root{
     --verde:#00563f; --verde-claro:#e3efe9; --cinza:#f4f6f5; --borda:#d5ddd9; --texto:#1c2b25; --mudo:#55645d;
@@ -183,9 +182,8 @@
 </main>
 
 <script>
-const CFG = window.APP_CONFIG || {};
-const SUPABASE_URL = CFG.SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = CFG.SUPABASE_ANON_KEY || '';
+const SUPABASE_URL = 'https://qnonohzczdvowkssjyaa.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_CKcc-9TIe0puzdeYA9D6qg_N6MslJEj';
 
 const SENTINELAS = [
   ['acamado','Acamado / domiciliado'],['deficiencia_fisica','Deficiência física'],['deficiencia_mental','Deficiência mental'],
@@ -215,7 +213,7 @@ async function carregar(){
   while(true){
     const {data, error} = await sb.from('familias_risco')
       .select('*, planilhas_risco(id,data,acs,rua,microarea)')
-      .order('created_at',{ascending:false}).range(de, de+lote-1);
+      .order('id',{ascending:true}).range(de, de+lote-1);
     if(error){ msg('Erro ao carregar: '+error.message,'erro'); return; }
     acum.push(...data);
     if(data.length < lote) break;
@@ -253,7 +251,7 @@ function aplicar(){
 
   if($('f-unica').checked){
     const mapa = new Map();
-    lista.slice().sort((a,b)=> (b.data||'').localeCompare(a.data||'') || (b.created_at||'').localeCompare(a.created_at||''))
+    lista.slice().sort((a,b)=> (b.data||'').localeCompare(a.data||''))
       .forEach(f => {
         const chave = (f.prontuario ? 'p:'+f.prontuario.trim().toLowerCase() : 'n:'+f.nome.trim().toLowerCase());
         if(!mapa.has(chave)) mapa.set(chave, f);
@@ -373,7 +371,7 @@ async function verificar(sessao){
     $('tela-negado').classList.toggle('hidden', !negado);
     $('tela-app').classList.toggle('hidden', !app);
   };
-  if(!sessao){ mostra(true,false,false); return; }
+  if(!sessao){ location.replace('./'); return; }   // sem sessão: volta para a tela inicial (login)
   const {data, error} = await sb.from('gestores').select('user_id').eq('user_id', sessao.user.id).maybeSingle();
   if(error || !data){ mostra(false,true,false); return; }
   $('usuario').textContent = sessao.user.email;
