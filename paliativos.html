@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elegibilidade para Cuidados Paliativos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  :root{
+    --verde:#00563f; --verde-claro:#e3efe9; --cinza:#f4f6f5; --borda:#d5ddd9; --texto:#1c2b25; --mudo:#55645d;
+    --ok:#2e7d32; --alerta:#f2b705; --elegivel:#7a2e8e; --perigo:#9b2335;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--cinza);color:var(--texto)}
+  header{background:var(--verde);color:#fff;padding:18px 16px}
+  header h1{margin:0;font-size:1.2rem}
+  header p{margin:4px 0 0;font-size:.85rem;opacity:.85}
+  main{max-width:820px;margin:0 auto;padding:16px}
+  .card{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:16px;margin-bottom:16px}
+  h2{margin:0 0 4px;font-size:1.05rem;color:var(--verde)}
+  .sub{font-size:.82rem;color:var(--mudo);margin:0 0 12px}
+  label.campo{display:block;font-size:.8rem;font-weight:600;margin-bottom:4px}
+  input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],textarea{
+    width:100%;padding:10px;border:1px solid var(--borda);border-radius:8px;font-size:1rem;background:#fff;font-family:inherit}
+  textarea{min-height:70px;resize:vertical}
+  .g4{display:grid;grid-template-columns:150px 1fr 1fr 110px;gap:12px;margin-bottom:12px}
+  .g3{display:grid;grid-template-columns:2fr 1fr 90px;gap:12px}
+  @media(max-width:620px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}.g3>:first-child{grid-column:1/-1}}
+  button{cursor:pointer;border:0;border-radius:8px;padding:11px 18px;font-size:1rem;font-weight:600}
+  .primario{background:var(--verde);color:#fff}
+  .secundario{background:#fff;color:var(--verde);border:1px solid var(--verde)}
+  .perigo{background:#fff;color:var(--perigo);border:1px solid var(--perigo)}
+  .pequeno{padding:5px 10px;font-size:.8rem}
+  .acoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .msg{margin-top:10px;font-size:.9rem}
+  .msg.erro{color:var(--perigo)} .msg.ok{color:var(--ok)}
+  .nota{font-size:.78rem;color:var(--mudo)}
+  .topo{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .hidden{display:none}
+  a{color:var(--verde);font-weight:600}
+
+  /* Barra de resultado fixa */
+  .barra{position:sticky;top:0;z-index:10;background:#fff;border:1px solid var(--borda);border-radius:10px;padding:10px 14px;margin-bottom:16px;
+    display:flex;gap:12px;align-items:center;flex-wrap:wrap;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+  .status{display:inline-block;color:#fff;font-weight:700;border-radius:8px;padding:7px 14px;font-size:.95rem}
+  .st-nao{background:var(--ok)} .st-triagem{background:var(--alerta);color:#1c2b25} .st-elegivel{background:var(--elegivel)}
+  .contagem{font-size:.82rem;color:var(--mudo)}
+
+  /* Itens */
+  .item{display:flex;gap:12px;align-items:flex-start;padding:11px 12px;border:1px solid var(--borda);border-radius:8px;margin-bottom:8px;cursor:pointer;line-height:1.35}
+  .item input{width:22px;height:22px;margin:1px 0 0;accent-color:var(--verde);flex-shrink:0}
+  .item.on{background:var(--verde-claro);border-color:var(--verde);font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 10px 34px}
+  .chip{display:flex;align-items:center;gap:6px;border:1px solid var(--borda);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:.88rem}
+  .chip input{width:18px;height:18px;accent-color:var(--verde)}
+  .chip.on{background:var(--verde-claro);border-color:var(--verde);font-weight:600}
+  details{border:1px solid var(--borda);border-radius:8px;margin-bottom:10px;background:#fff}
+  details>summary{cursor:pointer;padding:12px 14px;font-weight:700;color:var(--verde);display:flex;justify-content:space-between;gap:8px;list-style:none}
+  details>summary::-webkit-details-marker{display:none}
+  details>summary::before{content:'▸';margin-right:8px;transition:transform .15s}
+  details[open]>summary::before{transform:rotate(90deg)}
+  details>summary .nome{flex:1}
+  details .cont{padding:0 12px 4px}
+  .cnt{background:var(--cinza);color:var(--mudo);border-radius:999px;padding:1px 10px;font-size:.8rem;font-weight:700}
+  .cnt.tem{background:var(--elegivel);color:#fff}
+
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th,td{text-align:left;padding:8px;border-bottom:1px solid var(--borda)}
+  th{color:var(--verde)}
+  td.c,th.c{text-align:center}
+  .tag{display:inline-block;color:#fff;font-weight:700;border-radius:6px;padding:2px 9px;font-size:.78rem;white-space:nowrap}
+  .scroll-x{overflow-x:auto}
+  #detalhe ul{margin:6px 0 0;padding-left:20px}
+  #detalhe li{margin-bottom:3px}
+
+  /* Ficha para impressão */
+  #ficha{display:none}
+  .ficha{font-family:system-ui,Arial,sans-serif;color:#000;font-size:11pt}
+  .ficha h1{margin:0;font-size:17pt;text-align:center}
+  .ficha .sub2{text-align:center;margin:2px 0 14px;font-size:10pt}
+  .ficha table{width:100%;border-collapse:collapse;margin-bottom:12px}
+  .ficha th,.ficha td{border:1px solid #333;padding:5px 8px;text-align:left;color:#000;font-size:10.5pt}
+  .ficha th{background:#e8e8e8;width:18%}
+  .ficha h3{margin:12px 0 4px;font-size:11.5pt}
+  .ficha ul{margin:4px 0 8px;padding-left:20px}
+  .ficha .res{border:2px solid #000;border-radius:8px;padding:10px 14px;margin:12px 0;font-weight:800;font-size:13pt}
+  .ficha .assin{display:flex;gap:40px;margin-top:46px}
+  .ficha .assin div{flex:1;border-top:1px solid #000;text-align:center;font-size:9.5pt;padding-top:4px}
+  .ficha .rodape{margin-top:18px;font-size:8.5pt;color:#333}
+  @media print{
+    @page{size:A4;margin:14mm}
+    body{background:#fff}
+    header,main{display:none!important}
+    #ficha{display:block}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Elegibilidade para Cuidados Paliativos</h1>
+  <p>Elegibilidade simplificada (ACS) e SPICT-BR (equipe), com cálculo automático do resultado</p>
+</header>
+
+<main>
+  <!-- LOGIN -->
+  <section id="tela-login" class="card hidden" style="max-width:520px">
+    <h2>Acesso</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+      <div><label class="campo" for="email">E-mail</label><input type="email" id="email" autocomplete="username"></div>
+      <div><label class="campo" for="senha">Senha</label><input type="password" id="senha" autocomplete="current-password"></div>
+    </div>
+    <div class="acoes"><button class="primario" id="btn-entrar">Entrar</button></div>
+    <div id="msg-login" class="msg"></div>
+  </section>
+
+  <!-- APP -->
+  <section id="tela-app" class="hidden">
+    <div class="topo">
+      <span><span id="usuario" class="nota"></span> · <a href="./">Risco familiar</a></span>
+      <button class="secundario pequeno" id="btn-sair">Sair</button>
+    </div>
+
+    <div class="barra" id="barra">
+      <span class="status st-nao" id="status">Sem indicativo</span>
+      <span class="contagem" id="contagem">Etapa 1: 0 de 7 · SPICT-BR: 0 indicadores</span>
+    </div>
+
+    <div class="card">
+      <h2 id="titulo-form">Identificação</h2>
+      <div class="g4" style="margin-top:12px">
+        <div><label class="campo" for="data">Data</label><input type="date" id="data"></div>
+        <div><label class="campo" for="acs">ACS</label><input type="text" id="acs" placeholder="Nome do agente"></div>
+        <div><label class="campo" for="rua">Rua / localidade</label><input type="text" id="rua"></div>
+        <div><label class="campo" for="microarea">Microárea</label><input type="text" id="microarea"></div>
+      </div>
+      <div class="g3">
+        <div><label class="campo" for="paciente">Paciente</label><input type="text" id="paciente" placeholder="Nome completo"></div>
+        <div><label class="campo" for="prontuario">Prontuário</label><input type="text" id="prontuario"></div>
+        <div><label class="campo" for="idade">Idade</label><input type="number" id="idade" min="0" max="130" inputmode="numeric"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Etapa 1 — Elegibilidade simplificada (ACS)</h2>
+      <p class="sub">Marque o que se aplica ao paciente. Se <b>um único item</b> for positivo, o caso deve ser levado para discussão em reunião de equipe.</p>
+      <div id="lista-triagem"></div>
+    </div>
+
+    <div class="card">
+      <h2>Etapa 2 — SPICT-BR (equipe de saúde)</h2>
+      <p class="sub">Aplicada pela equipe na discussão do caso. Basta <b>um indicador positivo</b> para o paciente ser considerado elegível para abordagem paliativa.</p>
+      <div id="lista-spict"></div>
+    </div>
+
+    <div class="card">
+      <h2>Resultado</h2>
+      <div id="detalhe" style="margin-top:8px"></div>
+      <label class="campo" for="obs" style="margin-top:14px">Observações</label>
+      <textarea id="obs" placeholder="Anotações da equipe (sem dados desnecessários)"></textarea>
+      <div class="acoes">
+        <button class="primario" id="btn-salvar">Salvar avaliação</button>
+        <button class="secundario" id="btn-imprimir">Imprimir ficha</button>
+        <button class="secundario" id="btn-limpar">Nova avaliação</button>
+      </div>
+      <div id="msg-app" class="msg"></div>
+      <div class="nota" style="margin-top:10px">O resultado apoia a decisão da equipe e não substitui a avaliação clínica. A ferramenta identifica pacientes que podem se beneficiar da abordagem paliativa; não define, por si só, encaminhamento a serviço especializado.</div>
+    </div>
+
+    <div class="card">
+      <h2>Avaliações salvas</h2>
+      <div class="scroll-x" style="margin-top:8px"><table>
+        <thead><tr><th>Data</th><th>Paciente</th><th>ACS</th><th>Microárea</th><th class="c">Etapa 1</th><th class="c">SPICT</th><th>Resultado</th><th></th></tr></thead>
+        <tbody id="lista"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <div id="aviso-config" class="card hidden">
+    <h2>Configuração pendente</h2>
+    <p>Preencha <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> no arquivo <code>config.js</code>.</p>
+  </div>
+</main>
+
+<div id="ficha"></div>
+
+<script>
+const CFG = window.APP_CONFIG || {};
+const SUPABASE_URL = CFG.SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = CFG.SUPABASE_ANON_KEY || '';
+
+/* ========= INSTRUMENTOS (PlanificaSUS / MASS 2013, HIGHET 2013, Univ. Edinburgh 2020) ========= */
+const TRIAGEM = [
+  ['t_internacoes','Internações não programadas'],
+  ['t_funcional','Funcionalidade reduzida (a pessoa passa na cama ou na cadeira mais de 50% do dia)'],
+  ['t_dependencia','Dependência para cuidados pessoais por problemas físicos e/ou de saúde mental'],
+  ['t_sintomas','Sintomas persistentes'],
+  ['t_qualidade','Paciente ou familiar solicita foco na qualidade de vida']
+];
+const CONDICOES = [
+  ['cancer','Câncer'],['demencia','Demência'],['neurologica','Doença neurológica'],['cardiovascular','Doença cardiovascular'],
+  ['pulmonar','Doença pulmonar'],['renal','Doença renal'],['hepatica','Doença hepática']
+];
+const SURPRESA = ['t_surpresa','Pergunta surpresa: "Você ficaria surpreso se este paciente morresse ao longo do próximo ano?" — marque se a resposta for "Não me surpreenderia"'];
+const TOTAL_TRIAGEM = TRIAGEM.length + 2; // 5 itens + condição avançada + pergunta surpresa
+
+const SPICT = [
+  {g:'gerais', nome:'Indicadores gerais de piora da saúde', itens:[
+    ['g1','Internações hospitalares não programadas'],
+    ['g2','Capacidade funcional ruim ou em declínio, com limitada reversibilidade (passa na cama ou cadeira mais de 50% do dia)'],
+    ['g3','Dependente de outros para cuidados pessoais devido a problemas físicos e/ou de saúde mental (maior suporte necessário ao cuidador)'],
+    ['g4','Perda de peso significativa nos últimos 3 a 6 meses e/ou baixo índice de massa corporal'],
+    ['g5','Sintomas persistentes apesar de tratamento otimizado das condições de base'],
+    ['g6','A pessoa ou sua família solicita cuidados paliativos, interrupção ou limitação do tratamento, ou foco na qualidade de vida']]},
+  {g:'cancer', nome:'Câncer', itens:[
+    ['ca1','Capacidade funcional em declínio devido à progressão do câncer'],
+    ['ca2','Estado físico muito debilitado para tratamento do câncer ou tratamento para controle dos sintomas']]},
+  {g:'demencia', nome:'Demência / fragilidade', itens:[
+    ['de1','Incapaz de vestir-se, caminhar ou comer sem ajuda'],
+    ['de2','Redução da ingestão de alimentos e líquidos e dificuldades na deglutição'],
+    ['de3','Incontinência urinária e fecal'],
+    ['de4','Incapaz de manter contato verbal; pouca interação social'],
+    ['de5','Fratura de fêmur; múltiplas quedas'],
+    ['de6','Episódios frequentes de febre ou infecções; pneumonia aspirativa']]},
+  {g:'neuro', nome:'Doença neurológica', itens:[
+    ['ne1','Deterioração progressiva da capacidade física e/ou da função cognitiva mesmo com terapia otimizada'],
+    ['ne2','Problemas da fala com dificuldade progressiva de comunicação e/ou deglutição'],
+    ['ne3','Pneumonia aspirativa recorrente; falta de ar ou insuficiência respiratória']]},
+  {g:'cardio', nome:'Doença cardiovascular', itens:[
+    ['cv1','Classe funcional III/IV de NYHA (insuficiência cardíaca ou doença coronariana extensa e intratável) com falta de ar ou dor precordial em repouso ou aos mínimos esforços'],
+    ['cv2','Doença vascular periférica grave e inoperável']]},
+  {g:'resp', nome:'Doença respiratória', itens:[
+    ['re1','Doença respiratória crônica grave com falta de ar em repouso ou aos mínimos esforços entre as exacerbações'],
+    ['re2','Necessidade de oxigenoterapia de longo prazo'],
+    ['re3','Já precisou de ventilação para insuficiência respiratória, ou a ventilação é contraindicada']]},
+  {g:'renal', nome:'Doença renal', itens:[
+    ['rn1','Doença renal crônica estágios 4 e 5 (TFG < 30 ml/min) com piora clínica'],
+    ['rn2','Insuficiência renal complicando outras condições limitantes ou tratamentos'],
+    ['rn3','Decisão de suspender a diálise devido à piora clínica ou intolerância ao tratamento']]},
+  {g:'hepatica', nome:'Doença hepática', itens:[
+    ['he1','Cirrose avançada, complicação no último ano: ascite resistente a diuréticos'],
+    ['he2','Cirrose avançada, complicação no último ano: encefalopatia hepática'],
+    ['he3','Cirrose avançada, complicação no último ano: síndrome hepatorrenal'],
+    ['he4','Cirrose avançada, complicação no último ano: peritonite bacteriana'],
+    ['he5','Cirrose avançada, complicação no último ano: sangramentos recorrentes de varizes esofágicas'],
+    ['he6','Transplante hepático contraindicado']]},
+  {g:'outras', nome:'Outras condições', itens:[
+    ['ou1','Deterioração e sob risco de morrer de qualquer outra condição ou complicação que não seja reversível']]}
+];
+const NOME_ITEM = {};
+SPICT.forEach(gr => gr.itens.forEach(([id,t]) => NOME_ITEM[id] = t));
+
+const RESULTADOS = {
+  ELEGIVEL:   {css:'st-elegivel', texto:'ELEGÍVEL para abordagem paliativa'},
+  TRIAGEM:    {css:'st-triagem',  texto:'Triagem positiva: discutir em reunião de equipe e aplicar o SPICT-BR'},
+  NAO:        {css:'st-nao',      texto:'Sem indicativo no momento'}
+};
+
+const $ = id => document.getElementById(id);
+const el = (tag, cls, txt) => { const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined&&txt!==null) e.textContent=txt; return e; };
+function msg(id, t, tipo){ const e=$(id); e.textContent=t||''; e.className='msg '+(tipo||''); }
+const dataBR = iso => { if(!iso) return ''; const [a,m,d]=iso.split('-'); return d+'/'+m+'/'+a; };
+const hoje = () => new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'});
+
+let sb = null;
+let editandoId = null;
+let sujo = false;
+const ctl = {};        // id -> {input, rotulo}
+const condCtl = {};    // chave -> {input, rotulo}
+const grupos = {};     // g -> {cnt, ids}
+
+/* ========= MONTAGEM ========= */
+function criarItem(id, texto, container){
+  const lab = el('label','item'); const inp = document.createElement('input'); inp.type='checkbox';
+  lab.appendChild(inp); lab.appendChild(el('span',null,texto));
+  inp.addEventListener('change', ()=>{ sujo = true; atualizar(); });
+  container.appendChild(lab); ctl[id] = {input:inp, rotulo:lab};
+}
+
+function montar(){
+  const lt = $('lista-triagem');
+  TRIAGEM.forEach(([id,t]) => criarItem(id,t,lt));
+
+  // condição clínica avançada (com chips)
+  const lab = el('div','item'); lab.style.cursor='default';
+  lab.appendChild(el('span',null,'Alguma condição clínica avançada (marque a(s) condição(ões)):'));
+  lt.appendChild(lab); ctl['t_condicao'] = {rotulo:lab};
+  const chips = el('div','chips');
+  CONDICOES.forEach(([k,n])=>{
+    const c = el('label','chip'); const i = document.createElement('input'); i.type='checkbox';
+    c.appendChild(i); c.appendChild(el('span',null,n));
+    i.addEventListener('change', ()=>{ sujo = true; atualizar(); });
+    chips.appendChild(c); condCtl[k] = {input:i, rotulo:c};
+  });
+  lt.appendChild(chips);
+
+  criarItem(SURPRESA[0], SURPRESA[1], lt);
+
+  const ls = $('lista-spict');
+  SPICT.forEach((gr, idx)=>{
+    const d = document.createElement('details'); if(idx === 0) d.open = true;
+    const s = document.createElement('summary');
+    s.appendChild(el('span','nome',gr.nome));
+    const cnt = el('span','cnt','0'); s.appendChild(cnt);
+    d.appendChild(s);
+    const cont = el('div','cont');
+    gr.itens.forEach(([id,t]) => criarItem(id,t,cont));
+    d.appendChild(cont); ls.appendChild(d);
+    grupos[gr.g] = {cnt, ids: gr.itens.map(i=>i[0])};
+  });
+}
+
+/* ========= CÁLCULO ========= */
+function lerEstado(){
+  const triagem = {}, spict = {};
+  TRIAGEM.forEach(([id]) => triagem[id] = ctl[id].input.checked);
+  triagem[SURPRESA[0]] = ctl[SURPRESA[0]].input.checked;
+  const condicoes = CONDICOES.filter(([k]) => condCtl[k].input.checked).map(([k])=>k);
+  SPICT.forEach(gr => gr.itens.forEach(([id]) => spict[id] = ctl[id].input.checked));
+  return {triagem, condicoes, spict};
+}
+
+function calcular(e){
+  const positivosTriagem = [];
+  TRIAGEM.forEach(([id,t]) => { if(e.triagem[id]) positivosTriagem.push(t); });
+  if(e.condicoes.length){
+    const nomes = CONDICOES.filter(([k])=>e.condicoes.includes(k)).map(c=>c[1]);
+    positivosTriagem.push('Condição clínica avançada: ' + nomes.join(', '));
+  }
+  if(e.triagem[SURPRESA[0]]) positivosTriagem.push('Pergunta surpresa: "não me surpreenderia"');
+
+  const spictPos = [];
+  SPICT.forEach(gr => gr.itens.forEach(([id,t]) => { if(e.spict[id]) spictPos.push({grupo:gr.nome, texto:t}); }));
+
+  let resultado = 'NAO';
+  if(spictPos.length > 0) resultado = 'ELEGIVEL';
+  else if(positivosTriagem.length > 0) resultado = 'TRIAGEM';
+  return {positivosTriagem, spictPos, qtdTriagem: positivosTriagem.length, qtdSpict: spictPos.length, resultado};
+}
+
+function atualizar(){
+  const e = lerEstado(), c = calcular(e);
+
+  // marca visual
+  TRIAGEM.forEach(([id]) => ctl[id].rotulo.classList.toggle('on', e.triagem[id]));
+  ctl[SURPRESA[0]].rotulo.classList.toggle('on', e.triagem[SURPRESA[0]]);
+  ctl['t_condicao'].rotulo.classList.toggle('on', e.condicoes.length > 0);
+  CONDICOES.forEach(([k]) => condCtl[k].rotulo.classList.toggle('on', condCtl[k].input.checked));
+  SPICT.forEach(gr => {
+    let n = 0;
+    gr.itens.forEach(([id]) => { ctl[id].rotulo.classList.toggle('on', e.spict[id]); if(e.spict[id]) n++; });
+    grupos[gr.g].cnt.textContent = n; grupos[gr.g].cnt.classList.toggle('tem', n > 0);
+  });
+
+  // barra
+  const r = RESULTADOS[c.resultado];
+  $('status').className = 'status ' + r.css; $('status').textContent = r.texto;
+  $('contagem').textContent = 'Etapa 1: ' + c.qtdTriagem + ' de ' + TOTAL_TRIAGEM + ' · SPICT-BR: ' + c.qtdSpict + (c.qtdSpict===1 ? ' indicador' : ' indicadores');
+
+  // detalhe
+  const d = $('detalhe'); d.innerHTML = '';
+  const st = el('span','status '+r.css, r.texto); d.appendChild(st);
+  const explic = {
+    ELEGIVEL: 'Há pelo menos um indicador positivo no SPICT-BR: o paciente é considerado elegível para abordagem paliativa. Registre em prontuário, comunique e coordene o plano de cuidados.',
+    TRIAGEM:  'Pelo menos um item da elegibilidade simplificada está positivo: o caso deve ser discutido em reunião de equipe, que define a elegibilidade com o SPICT-BR (Etapa 2).',
+    NAO:      'Nenhum item positivo até agora. Reavalie se houver internação, piora funcional, novos sintomas ou pedido da família.'
+  }[c.resultado];
+  d.appendChild(el('p',null,explic));
+  if(c.positivosTriagem.length){
+    d.appendChild(el('b',null,'Itens positivos da Etapa 1:'));
+    const ul = el('ul'); c.positivosTriagem.forEach(t => ul.appendChild(el('li',null,t))); d.appendChild(ul);
+  }
+  if(c.spictPos.length){
+    d.appendChild(el('b',null,'Indicadores positivos do SPICT-BR:'));
+    const ul = el('ul'); c.spictPos.forEach(p => ul.appendChild(el('li',null,p.grupo + ': ' + p.texto))); d.appendChild(ul);
+  }
+  return c;
+}
+
+/* ========= FORMULÁRIO ========= */
+function preencher(reg){
+  const r = reg || {};
+  $('data').value = r.data || hoje();
+  $('acs').value = r.acs || ($('acs').value || '');
+  $('rua').value = r.rua || '';
+  $('microarea').value = r.microarea || ($('microarea').value || '');
+  $('paciente').value = r.paciente || '';
+  $('prontuario').value = r.prontuario || '';
+  $('idade').value = r.idade ?? '';
+  $('obs').value = r.observacao || '';
+  const tri = r.triagem || {}, sp = r.spict || {}, cond = r.condicoes || [];
+  TRIAGEM.forEach(([id]) => ctl[id].input.checked = !!tri[id]);
+  ctl[SURPRESA[0]].input.checked = !!tri[SURPRESA[0]];
+  CONDICOES.forEach(([k]) => condCtl[k].input.checked = cond.includes(k));
+  SPICT.forEach(gr => gr.itens.forEach(([id]) => ctl[id].input.checked = !!sp[id]));
+  atualizar();
+}
+
+function novaAvaliacao(manterCabecalho){
+  editandoId = null; sujo = false;
+  const acs = $('acs').value, micro = $('microarea').value, data = $('data').value, rua = $('rua').value;
+  preencher({});
+  if(manterCabecalho){ $('acs').value = acs; $('microarea').value = micro; $('data').value = data || hoje(); $('rua').value = rua; }
+  $('titulo-form').textContent = 'Identificação';
+  msg('msg-app','');
+}
+
+/* ========= SUPABASE ========= */
+async function salvar(){
+  const nome = $('paciente').value.trim(), acs = $('acs').value.trim(), data = $('data').value;
+  if(!data || !acs){ msg('msg-app','Informe a data e o nome do ACS.','erro'); return; }
+  if(!nome){ msg('msg-app','Informe o nome do paciente.','erro'); return; }
+  const e = lerEstado(), c = calcular(e);
+  const linha = {
+    data, acs, rua: $('rua').value.trim() || null, microarea: $('microarea').value.trim() || null,
+    paciente: nome, prontuario: $('prontuario').value.trim() || null,
+    idade: $('idade').value !== '' ? Math.max(0, Math.floor(Number($('idade').value))) : null,
+    triagem: e.triagem, condicoes: e.condicoes, spict: e.spict,
+    qtd_triagem: c.qtdTriagem, qtd_spict: c.qtdSpict, resultado: c.resultado,
+    observacao: $('obs').value.trim() || null, updated_at: new Date().toISOString()
+  };
+  msg('msg-app','Salvando...');
+  const q = editandoId
+    ? await sb.from('elegibilidade_paliativa').update(linha).eq('id', editandoId).select('id').single()
+    : await sb.from('elegibilidade_paliativa').insert(linha).select('id').single();
+  if(q.error){ msg('msg-app','Erro ao salvar: '+q.error.message,'erro'); return; }
+  editandoId = q.data.id; sujo = false;
+  msg('msg-app','Avaliação salva.','ok');
+  carregarLista();
+}
+
+async function carregarLista(){
+  const {data, error} = await sb.from('elegibilidade_paliativa')
+    .select('id,data,paciente,acs,microarea,qtd_triagem,qtd_spict,resultado')
+    .order('data',{ascending:false}).order('created_at',{ascending:false}).limit(100);
+  const tb = $('lista'); tb.innerHTML = '';
+  if(error){ msg('msg-app','Erro ao carregar a lista: '+error.message,'erro'); return; }
+  if(!data.length){ const tr=el('tr'); const td=el('td',null,'Nenhuma avaliação salva.'); td.colSpan=8; tr.appendChild(td); tb.appendChild(tr); return; }
+  data.forEach(a=>{
+    const tr = el('tr');
+    [dataBR(a.data), a.paciente, a.acs, a.microarea||''].forEach(v => tr.appendChild(el('td',null,v)));
+    tr.appendChild(el('td','c',a.qtd_triagem + '/' + TOTAL_TRIAGEM));
+    tr.appendChild(el('td','c',a.qtd_spict));
+    const tdr = el('td'); const rs = RESULTADOS[a.resultado] || RESULTADOS.NAO;
+    const tag = el('span','tag '+rs.css, a.resultado==='ELEGIVEL' ? 'Elegível' : (a.resultado==='TRIAGEM' ? 'Triagem positiva' : 'Sem indicativo'));
+    tdr.appendChild(tag); tr.appendChild(tdr);
+    const ta = el('td'); ta.style.whiteSpace = 'nowrap';
+    const bo = el('button','secundario pequeno','Abrir'); bo.onclick = ()=>abrir(a.id);
+    const bx = el('button','perigo pequeno','Excluir'); bx.style.marginLeft='6px';
+    bx.onclick = async ()=>{
+      if(!confirm('Excluir a avaliação de '+a.paciente+'?')) return;
+      const r = await sb.from('elegibilidade_paliativa').delete().eq('id', a.id);
+      if(r.error) msg('msg-app','Erro ao excluir: '+r.error.message,'erro');
+      else { if(editandoId === a.id) novaAvaliacao(true); carregarLista(); }
+    };
+    ta.appendChild(bo); ta.appendChild(bx); tr.appendChild(ta); tb.appendChild(tr);
+  });
+}
+
+async function abrir(id){
+  if(sujo && !confirm('Há alterações não salvas. Abrir outra avaliação mesmo assim?')) return;
+  const {data, error} = await sb.from('elegibilidade_paliativa').select('*').eq('id', id).single();
+  if(error){ msg('msg-app','Erro: '+error.message,'erro'); return; }
+  editandoId = id; sujo = false;
+  preencher(data);
+  $('titulo-form').textContent = 'Editando a avaliação de ' + data.paciente;
+  msg('msg-app','Avaliação carregada.','ok');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ========= IMPRESSÃO ========= */
+function imprimir(){
+  const nome = $('paciente').value.trim();
+  if(!nome){ msg('msg-app','Informe o nome do paciente para imprimir.','erro'); return; }
+  const e = lerEstado(), c = calcular(e), r = RESULTADOS[c.resultado];
+  const f = $('ficha'); f.innerHTML = '';
+  const s = el('section','ficha');
+  s.appendChild(el('h1',null,'Ficha de Elegibilidade para Cuidados Paliativos'));
+  s.appendChild(el('div','sub2','Elegibilidade simplificada e SPICT-BR'));
+
+  const t = el('table');
+  const linha = pares => { const tr = el('tr'); pares.forEach(([k,v])=>{ tr.appendChild(el('th',null,k)); tr.appendChild(el('td',null,v ?? '')); }); t.appendChild(tr); };
+  linha([['Data', dataBR($('data').value)], ['ACS', $('acs').value.trim()]]);
+  linha([['Rua / localidade', $('rua').value.trim()], ['Microárea', $('microarea').value.trim()]]);
+  linha([['Paciente', nome], ['Prontuário', $('prontuario').value.trim()]]);
+  linha([['Idade', $('idade').value], ['', '']]);
+  s.appendChild(t);
+
+  s.appendChild(el('h3',null,'Etapa 1 — Elegibilidade simplificada (' + c.qtdTriagem + ' de ' + TOTAL_TRIAGEM + ' itens positivos)'));
+  if(c.positivosTriagem.length){ const ul = el('ul'); c.positivosTriagem.forEach(x=>ul.appendChild(el('li',null,x))); s.appendChild(ul); }
+  else s.appendChild(el('p',null,'Nenhum item positivo.'));
+
+  s.appendChild(el('h3',null,'Etapa 2 — SPICT-BR (' + c.qtdSpict + (c.qtdSpict===1 ? ' indicador positivo)' : ' indicadores positivos)')));
+  if(c.spictPos.length){ const ul = el('ul'); c.spictPos.forEach(p=>ul.appendChild(el('li',null,p.grupo+': '+p.texto))); s.appendChild(ul); }
+  else s.appendChild(el('p',null,'Nenhum indicador positivo.'));
+
+  s.appendChild(el('div','res','Resultado: ' + r.texto));
+  const obs = $('obs').value.trim(); if(obs){ s.appendChild(el('h3',null,'Observações')); s.appendChild(el('p',null,obs)); }
+
+  const as = el('div','assin'); as.appendChild(el('div',null,'Assinatura do ACS')); as.appendChild(el('div',null,'Assinatura do profissional da equipe')); s.appendChild(as);
+  s.appendChild(el('div','rodape','Impresso em ' + new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}) +
+    '. Fonte: PlanificaSUS — Instrumentos de elegibilidade para abordagem paliativa; adaptado de Maas et al., 2013; Highet et al., 2013; University of Edinburgh, 2020 (SPICT-BR). O resultado apoia a decisão da equipe e não substitui a avaliação clínica.'));
+  f.appendChild(s);
+  window.print();
+}
+
+/* ========= LOGIN ========= */
+function mostrar(sessao){
+  $('tela-login').classList.toggle('hidden', !!sessao);
+  $('tela-app').classList.toggle('hidden', !sessao);
+  if(sessao){ $('usuario').textContent = sessao.user.email; carregarLista(); }
+}
+async function entrar(){
+  msg('msg-login','');
+  const {error} = await sb.auth.signInWithPassword({email:$('email').value.trim(), password:$('senha').value});
+  if(error) msg('msg-login','Falha no login: '+error.message,'erro');
+}
+
+(async function init(){
+  montar();
+  preencher({});
+  ['data','acs','rua','microarea','paciente','prontuario','idade','obs'].forEach(id => $(id).addEventListener('input', ()=>{ sujo = true; }));
+  $('btn-salvar').onclick = salvar;
+  $('btn-imprimir').onclick = imprimir;
+  $('btn-limpar').onclick = ()=>{ if(!sujo || confirm('Descartar o que está na tela e iniciar uma nova avaliação?')) novaAvaliacao(true); };
+  $('btn-entrar').onclick = entrar;
+  $('senha').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
+  window.addEventListener('beforeunload', e=>{ if(sujo){ e.preventDefault(); e.returnValue=''; } });
+
+  if(!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL.startsWith('COLE_') || SUPABASE_ANON_KEY.startsWith('COLE_')){
+    $('aviso-config').classList.remove('hidden'); return;
+  }
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  $('btn-sair').onclick = ()=>sb.auth.signOut();
+  sb.auth.onAuthStateChange((_ev, sessao)=> mostrar(sessao));
+  const {data} = await sb.auth.getSession();
+  mostrar(data.session);
+})();
+</script>
+</body>
+</html>

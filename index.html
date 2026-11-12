@@ -119,7 +119,7 @@
   <!-- APP -->
   <section id="tela-app" class="hidden">
     <div class="topo">
-      <span id="usuario" class="nota"></span>
+      <span><span id="usuario" class="nota"></span> · <a href="paliativos.html" style="color:var(--verde);font-weight:600">Cuidados paliativos</a></span>
       <button class="secundario pequeno" id="btn-sair">Sair</button>
     </div>
 
@@ -208,8 +208,9 @@
 <script>
 /* ========= CONFIGURAÇÃO (chaves ficam no config.js) ========= */
 const CFG = window.APP_CONFIG || {};
-const SUPABASE_URL = 'https://qnonohzczdvowkssjyaa.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_CKcc-9TIe0puzdeYA9D6qg_N6MslJEj';
+const SUPABASE_URL = CFG.SUPABASE_URL || 'COLE_AQUI_A_URL_DO_PROJETO';
+const SUPABASE_ANON_KEY = CFG.SUPABASE_ANON_KEY || 'COLE_AQUI_A_ANON_KEY';
+
 /* Relação morador/cômodo = moradores ÷ cômodos */
 const PONTOS_RAZAO = { maior: 3, igual: 2, menor: 0 };
 
