@@ -77,7 +77,7 @@
 <body>
 <header>
   <h1>Área do Gestor — Risco Familiar</h1>
-  <p>Acompanhamento da estratificação de risco familiar (Coelho-Savassi) registrada pelos agentes comunitários</p>
+  <p>Acompanhamento da estratificação de risco familiar (Coelho-Savassi) registrada pelos TACS</p>
 </header>
 
 <main>
@@ -113,7 +113,7 @@
       <div class="filtros">
         <div><label for="f-de">Data inicial</label><input type="date" id="f-de"></div>
         <div><label for="f-ate">Data final</label><input type="date" id="f-ate"></div>
-        <div><label for="f-acs">ACS</label><select id="f-acs"><option value="">Todos</option></select></div>
+        <div><label for="f-acs">TACS</label><select id="f-acs"><option value="">Todos</option></select></div>
         <div><label for="f-micro">Microárea</label><select id="f-micro"><option value="">Todas</option></select></div>
         <div><label for="f-risco">Risco</label>
           <select id="f-risco"><option value="">Todos</option><option>RH</option><option>R1</option><option>R2</option><option>R3</option></select></div>
@@ -150,9 +150,9 @@
     </div>
 
     <div class="card">
-      <h2>Por agente comunitário (ACS)</h2>
+      <h2>Por TACS</h2>
       <div class="scroll-x"><table>
-        <thead><tr><th>ACS</th><th class="c">Planilhas</th><th class="c">Famílias</th><th class="c">RH</th><th class="c">R1</th><th class="c">R2</th><th class="c">R3</th><th class="c">% R2 + R3</th><th>Última entrega</th></tr></thead>
+        <thead><tr><th>TACS</th><th class="c">Planilhas</th><th class="c">Famílias</th><th class="c">RH</th><th class="c">R1</th><th class="c">R2</th><th class="c">R3</th><th class="c">% R2 + R3</th><th>Última entrega</th></tr></thead>
         <tbody id="t-acs"></tbody>
       </table></div>
     </div>
@@ -168,7 +168,7 @@
       </div>
       <div class="nota" id="contagem" style="margin-bottom:8px"></div>
       <div class="scroll"><table>
-        <thead><tr><th>Data</th><th>ACS</th><th>Microárea</th><th>Rua / localidade</th><th>Prontuário</th><th>Família / responsável</th><th class="c">Pontos</th><th class="c">Risco</th></tr></thead>
+        <thead><tr><th>Data</th><th>TACS</th><th>Microárea</th><th>Rua / localidade</th><th>Prontuário</th><th>Família / responsável</th><th class="c">Pontos</th><th class="c">Risco</th></tr></thead>
         <tbody id="t-fam"></tbody>
       </table></div>
       <div class="nota" style="margin-top:8px">Ordenado do maior para o menor risco. Faixas: 0 a 4 = RH (risco habitual) · 5 ou 6 = R1 · 7 ou 8 = R2 · 9 ou mais = R3.</div>
@@ -274,7 +274,7 @@ function desenhar(filtroRisco){
 
   // KPIs
   const kp = $('kpis'); kp.innerHTML = '';
-  [[total,'Famílias estratificadas'],[planilhas,'Planilhas entregues'],[acsN,'ACS com registros'],
+  [[total,'Famílias estratificadas'],[planilhas,'Planilhas entregues'],[acsN,'TACS com registros'],
    [c.R2+c.R3, 'Famílias R2 + R3 ('+pct(c.R2+c.R3,total)+')']].forEach(([v,t])=>{
     const d = el('div','kpi'); d.appendChild(el('b',null,v)); d.appendChild(el('span',null,t)); kp.appendChild(d);
   });
@@ -302,8 +302,8 @@ function desenhar(filtroRisco){
 
   // Por microárea
   agrupar(base, f=>f.microarea||'(sem microárea)', 't-micro', false);
-  // Por ACS
-  agrupar(base, f=>f.acs||'(sem ACS)', 't-acs', true);
+  // Por TACS
+  agrupar(base, f=>f.acs||'(sem TACS)', 't-acs', true);
 
   // Lista de famílias
   desenharFamilias(filtroRisco);
@@ -352,7 +352,7 @@ function desenharFamilias(filtroRisco){
 function exportarCSV(){
   const lista = window._listaTabela || [];
   if(!lista.length){ msg('Não há famílias para exportar.','erro'); return; }
-  const cab = ['Data','ACS','Microárea','Rua/localidade','Prontuário','Família/responsável','Moradores','Cômodos',
+  const cab = ['Data','TACS','Microárea','Rua/localidade','Prontuário','Família/responsável','Moradores','Cômodos',
     ...SENTINELAS.map(s=>s[1]), 'Pontos morador/cômodo','Pontuação total','Risco'];
   const esc = v => { const s = (v===null||v===undefined) ? '' : String(v); return /[";\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
   const linhas = [cab.map(esc).join(';')];
