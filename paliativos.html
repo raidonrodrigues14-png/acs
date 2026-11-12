@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Elegibilidade para Cuidados Paliativos</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js"></script>
 <style>
   :root{
     --verde:#00563f; --verde-claro:#e3efe9; --cinza:#f4f6f5; --borda:#d5ddd9; --texto:#1c2b25; --mudo:#55645d;
@@ -191,7 +190,6 @@
 <div id="ficha"></div>
 
 <script>
-const CFG = window.APP_CONFIG || {};
 const SUPABASE_URL = 'https://qnonohzczdvowkssjyaa.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_CKcc-9TIe0puzdeYA9D6qg_N6MslJEj';
 
@@ -529,6 +527,7 @@ function imprimir(){
 
 /* ========= LOGIN ========= */
 function mostrar(sessao){
+  if(!sessao){ location.replace('./'); return; }   // sem sessão: volta para a tela inicial (login)
   $('tela-login').classList.toggle('hidden', !!sessao);
   $('tela-app').classList.toggle('hidden', !sessao);
   if(sessao){ $('usuario').textContent = sessao.user.email; carregarLista(); }

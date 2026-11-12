@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pontuação de Risco Familiar</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js"></script>
 <style>
   :root{
     --verde:#00563f; --verde-claro:#e3efe9; --cinza:#f4f6f5; --borda:#d5ddd9; --texto:#1c2b25;
@@ -206,8 +205,7 @@
 <div id="ficha"></div>
 
 <script>
-/* ========= CONFIGURAÇÃO (chaves ficam no config.js) ========= */
-const CFG = window.APP_CONFIG || {};
+/* ========= CONFIGURAÇÃO DO SUPABASE ========= */
 const SUPABASE_URL = 'https://qnonohzczdvowkssjyaa.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_CKcc-9TIe0puzdeYA9D6qg_N6MslJEj';
 
@@ -573,6 +571,7 @@ async function abrir(id){
 
 /* ========= LOGIN ========= */
 function mostrar(logado, sessao){
+  if(!logado){ location.replace('./'); return; }   // sem sessão: volta para a tela inicial (login)
   $('tela-login').classList.toggle('hidden', logado);
   $('tela-app').classList.toggle('hidden', !logado);
   if(logado){ $('usuario').textContent = sessao.user.email; carregarLista(); }
