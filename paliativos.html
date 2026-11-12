@@ -55,6 +55,11 @@
   .chip{display:flex;align-items:center;gap:6px;border:1px solid var(--borda);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:.88rem}
   .chip input{width:18px;height:18px;accent-color:var(--verde)}
   .chip.on{background:var(--verde-claro);border-color:var(--verde);font-weight:600}
+  .sn{display:flex;gap:10px;flex-wrap:wrap}
+  .sn-op{display:flex;align-items:center;gap:8px;border:2px solid var(--borda);border-radius:8px;padding:10px 16px;cursor:pointer;font-weight:600;background:#fff;min-width:190px}
+  .sn-op input{width:20px;height:20px;accent-color:var(--verde)}
+  .sn-op.sel{border-color:var(--verde);background:#fff}
+  .sn-op.sel:has(input[value=nao]){border-color:var(--elegivel);background:#f5eaf8}
   details{border:1px solid var(--borda);border-radius:8px;margin-bottom:10px;background:#fff}
   details>summary{cursor:pointer;padding:12px 14px;font-weight:700;color:var(--verde);display:flex;justify-content:space-between;gap:8px;list-style:none}
   details>summary::-webkit-details-marker{display:none}
@@ -202,7 +207,7 @@ const CONDICOES = [
   ['cancer','Câncer'],['demencia','Demência'],['neurologica','Doença neurológica'],['cardiovascular','Doença cardiovascular'],
   ['pulmonar','Doença pulmonar'],['renal','Doença renal'],['hepatica','Doença hepática']
 ];
-const SURPRESA = ['t_surpresa','Pergunta surpresa: "Você ficaria surpreso se este paciente morresse ao longo do próximo ano?" — marque se a resposta for "Não me surpreenderia"'];
+const SURPRESA = ['t_surpresa','Pergunta surpresa: "Você ficaria surpreso se este paciente morresse ao longo do próximo ano?"'];
 const TOTAL_TRIAGEM = TRIAGEM.length + 2; // 5 itens + condição avançada + pergunta surpresa
 
 const SPICT = [
@@ -268,6 +273,7 @@ let editandoId = null;
 let sujo = false;
 const ctl = {};        // id -> {input, rotulo}
 const condCtl = {};    // chave -> {input, rotulo}
+const surpresaCtl = {}; // 'sim' | 'nao' -> input radio
 const grupos = {};     // g -> {cnt, ids}
 
 /* ========= MONTAGEM ========= */
@@ -295,7 +301,18 @@ function montar(){
   });
   lt.appendChild(chips);
 
-  criarItem(SURPRESA[0], SURPRESA[1], lt);
+  // pergunta surpresa: Sim / Não ("Não" = não ficaria surpreso = positivo)
+  const sb2 = el('div','item'); sb2.style.cursor='default'; sb2.style.flexDirection='column'; sb2.style.gap='10px';
+  sb2.appendChild(el('span',null,SURPRESA[1]));
+  const op = el('div','sn');
+  [['sim','Sim, ficaria surpreso'],['nao','Não, não ficaria surpreso']].forEach(([v,t])=>{
+    const l = el('label','sn-op'); const i = document.createElement('input'); i.type='radio'; i.name='surpresa'; i.value=v;
+    l.appendChild(i); l.appendChild(el('span',null,t));
+    i.addEventListener('change', ()=>{ sujo = true; atualizar(); });
+    op.appendChild(l); surpresaCtl[v] = i;
+  });
+  sb2.appendChild(op); lt.appendChild(sb2);
+  ctl[SURPRESA[0]] = {rotulo: sb2};
 
   const ls = $('lista-spict');
   SPICT.forEach((gr, idx)=>{
@@ -315,7 +332,8 @@ function montar(){
 function lerEstado(){
   const triagem = {}, spict = {};
   TRIAGEM.forEach(([id]) => triagem[id] = ctl[id].input.checked);
-  triagem[SURPRESA[0]] = ctl[SURPRESA[0]].input.checked;
+  triagem[SURPRESA[0]] = surpresaCtl.nao.checked;                       // positivo = "não ficaria surpreso"
+  triagem.t_surpresa_resp = surpresaCtl.nao.checked ? 'nao' : (surpresaCtl.sim.checked ? 'sim' : '');
   const condicoes = CONDICOES.filter(([k]) => condCtl[k].input.checked).map(([k])=>k);
   SPICT.forEach(gr => gr.itens.forEach(([id]) => spict[id] = ctl[id].input.checked));
   return {triagem, condicoes, spict};
@@ -345,6 +363,8 @@ function atualizar(){
   // marca visual
   TRIAGEM.forEach(([id]) => ctl[id].rotulo.classList.toggle('on', e.triagem[id]));
   ctl[SURPRESA[0]].rotulo.classList.toggle('on', e.triagem[SURPRESA[0]]);
+  surpresaCtl.sim.parentElement.classList.toggle('sel', surpresaCtl.sim.checked);
+  surpresaCtl.nao.parentElement.classList.toggle('sel', surpresaCtl.nao.checked);
   ctl['t_condicao'].rotulo.classList.toggle('on', e.condicoes.length > 0);
   CONDICOES.forEach(([k]) => condCtl[k].rotulo.classList.toggle('on', condCtl[k].input.checked));
   SPICT.forEach(gr => {
@@ -391,7 +411,9 @@ function preencher(reg){
   $('obs').value = r.observacao || '';
   const tri = r.triagem || {}, sp = r.spict || {}, cond = r.condicoes || [];
   TRIAGEM.forEach(([id]) => ctl[id].input.checked = !!tri[id]);
-  ctl[SURPRESA[0]].input.checked = !!tri[SURPRESA[0]];
+  const resp = tri.t_surpresa_resp || (tri[SURPRESA[0]] ? 'nao' : '');
+  surpresaCtl.sim.checked = resp === 'sim';
+  surpresaCtl.nao.checked = resp === 'nao';
   CONDICOES.forEach(([k]) => condCtl[k].input.checked = cond.includes(k));
   SPICT.forEach(gr => gr.itens.forEach(([id]) => ctl[id].input.checked = !!sp[id]));
   atualizar();
