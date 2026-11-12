@@ -95,12 +95,24 @@
     .ficha:last-child{break-after:auto;page-break-after:auto}
     *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
+
+  /* Ajustes para celular */
+  .sent > div:first-child{min-width:0;flex:1}
+  @media(max-width:560px){
+    .sent{gap:8px;padding:10px}
+    .sent .chip{white-space:normal;display:inline-block;margin:4px 0 0 0}
+    .stepper{gap:4px}
+    .stepper button{width:36px;height:36px}
+    .stepper input{width:46px;padding:6px 2px}
+    main{padding:12px}
+    .card{padding:14px}
+  }
 </style>
 </head>
 <body>
 <header>
   <h1>Pontuação de Risco Familiar — Escala de Coelho-Savassi</h1>
-  <p>Planilha por agente comunitário e microárea, com cálculo automático de escore e risco</p>
+  <p>Planilha por TACS e microárea, com cálculo automático de escore e risco</p>
 </header>
 
 <main>
@@ -126,7 +138,7 @@
       <h2>1. Identificação da planilha</h2>
       <div class="g4">
         <div><label for="data">Data</label><input type="date" id="data"></div>
-        <div><label for="acs">ACS</label><input type="text" id="acs" placeholder="Nome do agente"></div>
+        <div><label for="acs">TACS</label><input type="text" id="acs" placeholder="Nome do TACS"></div>
         <div><label for="rua">Rua / localidade</label><input type="text" id="rua"></div>
         <div><label for="microarea">Microárea</label><input type="text" id="microarea" placeholder="Ex.: 13"></div>
       </div>
@@ -189,7 +201,7 @@
       <h2>Planilhas salvas</h2>
       <div class="scroll-x">
         <table>
-          <thead><tr><th>Data</th><th>ACS</th><th>Rua / localidade</th><th>Microárea</th><th class="c">Famílias</th><th class="c">RH</th><th class="c">R1</th><th class="c">R2</th><th class="c">R3</th><th></th></tr></thead>
+          <thead><tr><th>Data</th><th>TACS</th><th>Rua / localidade</th><th>Microárea</th><th class="c">Famílias</th><th class="c">RH</th><th class="c">R1</th><th class="c">R2</th><th class="c">R3</th><th></th></tr></thead>
           <tbody id="lista"></tbody>
         </table>
       </div>
@@ -420,7 +432,7 @@ function montarFicha(f){
     pares.forEach(([k,v])=>{ tr.appendChild(el('th',null,k)); tr.appendChild(el('td',null,v ?? '')); });
     ident.appendChild(tr);
   };
-  linha([['Data', dataBR($('data').value)], ['ACS', $('acs').value.trim()]]);
+  linha([['Data', dataBR($('data').value)], ['TACS', $('acs').value.trim()]]);
   linha([['Rua / localidade', $('rua').value.trim()], ['Microárea', $('microarea').value.trim()]]);
   linha([['Prontuário', f.prontuario], ['Família / responsável', f.nome]]);
   linha([['Nº de moradores', f.moradores], ['Nº de cômodos', f.comodos]]);
@@ -465,7 +477,7 @@ function montarFicha(f){
   ficha.appendChild(fin);
 
   const as = el('div','assin');
-  as.appendChild(el('div',null,'Assinatura do ACS'));
+  as.appendChild(el('div',null,'Assinatura do TACS'));
   as.appendChild(el('div',null,'Assinatura do(a) responsável'));
   ficha.appendChild(as);
 
@@ -485,7 +497,7 @@ function imprimir(lista){
 /* ========= SUPABASE ========= */
 async function salvar(){
   const data = $('data').value, acs = $('acs').value.trim();
-  if(!data || !acs){ msg('msg-app','Informe a data e o nome do ACS (passo 1).','erro'); return; }
+  if(!data || !acs){ msg('msg-app','Informe a data e o nome do TACS (passo 1).','erro'); return; }
   if(!familias.length){ msg('msg-app','Adicione pelo menos uma família à planilha.','erro'); return; }
   msg('msg-app','Salvando...');
 

@@ -104,7 +104,7 @@
 <body>
 <header>
   <h1>Elegibilidade para Cuidados Paliativos</h1>
-  <p>Elegibilidade simplificada (ACS) e SPICT-BR (equipe), com cálculo automático do resultado</p>
+  <p>Elegibilidade simplificada (TACS) e SPICT-BR (equipe), com cálculo automático do resultado</p>
 </header>
 
 <main>
@@ -135,7 +135,7 @@
       <h2 id="titulo-form">Identificação</h2>
       <div class="g4" style="margin-top:12px">
         <div><label class="campo" for="data">Data</label><input type="date" id="data"></div>
-        <div><label class="campo" for="acs">ACS</label><input type="text" id="acs" placeholder="Nome do agente"></div>
+        <div><label class="campo" for="acs">TACS</label><input type="text" id="acs" placeholder="Nome do TACS"></div>
         <div><label class="campo" for="rua">Rua / localidade</label><input type="text" id="rua"></div>
         <div><label class="campo" for="microarea">Microárea</label><input type="text" id="microarea"></div>
       </div>
@@ -147,7 +147,7 @@
     </div>
 
     <div class="card">
-      <h2>Etapa 1 — Elegibilidade simplificada (ACS)</h2>
+      <h2>Etapa 1 — Elegibilidade simplificada (TACS)</h2>
       <p class="sub">Marque o que se aplica ao paciente. Se <b>um único item</b> for positivo, o caso deve ser levado para discussão em reunião de equipe.</p>
       <div id="lista-triagem"></div>
     </div>
@@ -175,7 +175,7 @@
     <div class="card">
       <h2>Avaliações salvas</h2>
       <div class="scroll-x" style="margin-top:8px"><table>
-        <thead><tr><th>Data</th><th>Paciente</th><th>ACS</th><th>Microárea</th><th class="c">Etapa 1</th><th class="c">SPICT</th><th>Resultado</th><th></th></tr></thead>
+        <thead><tr><th>Data</th><th>Paciente</th><th>TACS</th><th>Microárea</th><th class="c">Etapa 1</th><th class="c">SPICT</th><th>Resultado</th><th></th></tr></thead>
         <tbody id="lista"></tbody>
       </table></div>
     </div>
@@ -429,7 +429,7 @@ function novaAvaliacao(manterCabecalho){
 /* ========= SUPABASE ========= */
 async function salvar(){
   const nome = $('paciente').value.trim(), acs = $('acs').value.trim(), data = $('data').value;
-  if(!data || !acs){ msg('msg-app','Informe a data e o nome do ACS.','erro'); return; }
+  if(!data || !acs){ msg('msg-app','Informe a data e o nome do TACS.','erro'); return; }
   if(!nome){ msg('msg-app','Informe o nome do paciente.','erro'); return; }
   const e = lerEstado(), c = calcular(e);
   const linha = {
@@ -501,7 +501,7 @@ function imprimir(){
 
   const t = el('table');
   const linha = pares => { const tr = el('tr'); pares.forEach(([k,v])=>{ tr.appendChild(el('th',null,k)); tr.appendChild(el('td',null,v ?? '')); }); t.appendChild(tr); };
-  linha([['Data', dataBR($('data').value)], ['ACS', $('acs').value.trim()]]);
+  linha([['Data', dataBR($('data').value)], ['TACS', $('acs').value.trim()]]);
   linha([['Rua / localidade', $('rua').value.trim()], ['Microárea', $('microarea').value.trim()]]);
   linha([['Paciente', nome], ['Prontuário', $('prontuario').value.trim()]]);
   linha([['Idade', $('idade').value], ['', '']]);
@@ -518,7 +518,7 @@ function imprimir(){
   s.appendChild(el('div','res','Resultado: ' + r.texto));
   const obs = $('obs').value.trim(); if(obs){ s.appendChild(el('h3',null,'Observações')); s.appendChild(el('p',null,obs)); }
 
-  const as = el('div','assin'); as.appendChild(el('div',null,'Assinatura do ACS')); as.appendChild(el('div',null,'Assinatura do profissional da equipe')); s.appendChild(as);
+  const as = el('div','assin'); as.appendChild(el('div',null,'Assinatura do TACS')); as.appendChild(el('div',null,'Assinatura do profissional da equipe')); s.appendChild(as);
   s.appendChild(el('div','rodape','Impresso em ' + new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}) +
     '. Fonte: PlanificaSUS — Instrumentos de elegibilidade para abordagem paliativa; adaptado de Maas et al., 2013; Highet et al., 2013; University of Edinburgh, 2020 (SPICT-BR). O resultado apoia a decisão da equipe e não substitui a avaliação clínica.'));
   f.appendChild(s);
