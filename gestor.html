@@ -64,6 +64,9 @@
   .scroll{overflow:auto;max-height:520px}
   .scroll-x{overflow-x:auto}
 
+  .duas > .card{min-width:0}
+  .sec-tit{font-size:.72rem;font-weight:700;letter-spacing:.14em;color:var(--mudo);margin:26px 0 10px}
+  .pe{background:#7a3f9b} .pt{background:#f2b705;color:#1c2b25} .pn{background:#2e7d32}
   @media print{
     @page{size:A4 landscape;margin:12mm}
     body{background:#fff}
@@ -77,7 +80,7 @@
 <body>
 <header>
   <h1>Área do Gestor — Risco Familiar</h1>
-  <p>Acompanhamento da estratificação de risco familiar (Coelho-Savassi) registrada pelos TACS</p>
+  <p>Risco familiar (Coelho-Savassi) e elegibilidade para cuidados paliativos, registrados pelos TACS</p>
 </header>
 
 <main>
@@ -120,7 +123,7 @@
       </div>
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:12px">
         <label style="display:flex;gap:6px;align-items:center;margin:0;font-weight:500">
-          <input type="checkbox" id="f-unica"> Contar cada família uma só vez (registro mais recente)
+          <input type="checkbox" id="f-unica"> Contar cada família / paciente uma só vez (registro mais recente)
         </label>
         <button class="secundario pequeno" id="btn-limpar-filtros">Limpar filtros</button>
       </div>
@@ -157,6 +160,48 @@
       </table></div>
     </div>
 
+    <div class="sec-tit">CUIDADOS PALIATIVOS</div>
+    <div id="msg-pal" class="msg erro"></div>
+    <div class="kpis" id="kpis-pal"></div>
+
+    <div class="duas">
+      <div class="card">
+        <h2>Resultado da elegibilidade</h2>
+        <div class="pilha" id="pilha-pal"></div>
+        <div class="leg" id="leg-pal"></div>
+      </div>
+      <div class="card">
+        <h2>Por microárea</h2>
+        <div class="scroll-x"><table>
+          <thead><tr><th>Microárea</th><th class="c">Avaliações</th><th class="c">Elegíveis</th><th class="c">Triagem +</th><th class="c">Sem indicativo</th></tr></thead>
+          <tbody id="t-micro-pal"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="topo" style="margin-bottom:8px">
+        <h2 style="margin:0">Casos para discussão da equipe</h2>
+        <span class="noprint" style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="f-casos" style="width:auto">
+            <option value="discutir">Elegíveis e triagens positivas</option>
+            <option value="ELEGIVEL">Só elegíveis</option>
+            <option value="TRIAGEM">Só triagens positivas</option>
+            <option value="todos">Todas as avaliações</option>
+          </select>
+          <input type="text" id="busca-pal" placeholder="Buscar paciente, prontuário ou rua" style="width:240px">
+          <button class="secundario pequeno" id="btn-csv-pal">Exportar CSV</button>
+        </span>
+      </div>
+      <div class="nota" id="contagem-pal" style="margin-bottom:8px"></div>
+      <div class="scroll"><table>
+        <thead><tr><th>Data</th><th>TACS</th><th>Microárea</th><th>Paciente</th><th class="c">Idade</th><th>Prontuário</th><th class="c">Etapa 1</th><th class="c">SPICT</th><th>Resultado</th></tr></thead>
+        <tbody id="t-casos"></tbody>
+      </table></div>
+      <div class="nota" style="margin-top:8px">Elegível = ao menos um indicador positivo no SPICT-BR. Triagem positiva = item positivo na Etapa 1, ainda sem SPICT-BR: caso a discutir em reunião de equipe. O resultado apoia a decisão da equipe e não substitui a avaliação clínica.</div>
+    </div>
+
+    <div class="sec-tit">FAMÍLIAS</div>
     <div class="card">
       <div class="topo" style="margin-bottom:8px">
         <h2 style="margin:0">Famílias</h2>
@@ -200,6 +245,8 @@ const $ = id => document.getElementById(id);
 let sb = null;
 let todas = [];     // todas as famílias carregadas (com dados da planilha)
 let visiveis = [];  // após filtros
+let pal = [];        // avaliações de elegibilidade para cuidados paliativos
+let visiveisPal = [];
 
 function msg(texto, tipo){ const e=$('msg'); e.textContent=texto||''; e.className='msg '+(tipo||''); }
 const dataBR = iso => { if(!iso) return ''; const [a,m,d]=iso.split('-'); return d+'/'+m+'/'+a; };
@@ -227,6 +274,7 @@ async function carregar(){
     microarea: r.planilhas_risco ? (r.planilhas_risco.microarea || '') : '',
     planilha_id: r.planilha_id
   }));
+  await carregarPal();
   preencherSelects();
   msg(todas.length ? '' : 'Nenhum dado registrado ainda (ou este usuário ainda não tem permissão de gestor).', todas.length ? '' : 'erro');
   aplicar();
@@ -239,8 +287,8 @@ function preencherSelects(){
     [...new Set(valores.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true})).forEach(v => s.appendChild(new Option(v, v)));
     s.value = [...s.options].some(o=>o.value===atual) ? atual : '';
   };
-  fill('f-acs', todas.map(f=>f.acs), 'Todos');
-  fill('f-micro', todas.map(f=>f.microarea), 'Todas');
+  fill('f-acs', [...todas, ...pal].map(f=>f.acs), 'Todos');
+  fill('f-micro', [...todas, ...pal].map(f=>f.microarea), 'Todas');
 }
 
 /* ========== FILTROS ========== */
@@ -260,6 +308,8 @@ function aplicar(){
   }
   visiveis = lista;                         // base dos indicadores (sem filtro de risco)
   desenhar(rk);
+  filtrarPal();
+  desenharPal();
 }
 
 /* ========== PAINEL ========== */
@@ -348,6 +398,130 @@ function desenharFamilias(filtroRisco){
   if(!lista.length){ const tr=el('tr'); const td=el('td',null,'Nenhuma família encontrada.'); td.colSpan=8; tr.appendChild(td); tb.appendChild(tr); }
 }
 
+/* ========== CUIDADOS PALIATIVOS ========== */
+const RES_PAL = {ELEGIVEL:{nome:'Elegível', css:'pe'}, TRIAGEM:{nome:'Triagem positiva', css:'pt'}, NAO:{nome:'Sem indicativo', css:'pn'}};
+const ORDEM_PAL = {ELEGIVEL:0, TRIAGEM:1, NAO:2};
+const TOTAL_TRIAGEM = 7;
+const NOME_COND = {cancer:'Câncer', demencia:'Demência', neurologica:'Doença neurológica', cardiovascular:'Doença cardiovascular',
+  pulmonar:'Doença pulmonar', renal:'Doença renal', hepatica:'Doença hepática'};
+
+async function carregarPal(){
+  const lote = 1000; let de = 0; const acum = [];
+  while(true){
+    const {data, error} = await sb.from('elegibilidade_paliativa').select('*').order('id',{ascending:true}).range(de, de+lote-1);
+    if(error){
+      pal = [];
+      $('msg-pal').textContent = 'Não foi possível carregar os paliativos: ' + error.message + ' (o paliativos.sql já foi executado no Supabase?)';
+      return;
+    }
+    acum.push(...data);
+    if(data.length < lote) break;
+    de += lote;
+  }
+  $('msg-pal').textContent = '';
+  pal = acum.map(r => ({...r, rua: r.rua || '', microarea: r.microarea || ''}));
+}
+
+function filtrarPal(){
+  const de = $('f-de').value, ate = $('f-ate').value, acs = $('f-acs').value, mi = $('f-micro').value;
+  let lista = pal.filter(r => (!de || r.data >= de) && (!ate || r.data <= ate) && (!acs || r.acs === acs) && (!mi || r.microarea === mi));
+  if($('f-unica').checked){
+    const mapa = new Map();
+    lista.slice().sort((a,b)=> (b.data||'').localeCompare(a.data||'') || (b.created_at||'').localeCompare(a.created_at||''))
+      .forEach(r => {
+        const chave = r.prontuario ? 'p:'+r.prontuario.trim().toLowerCase() : 'n:'+r.paciente.trim().toLowerCase();
+        if(!mapa.has(chave)) mapa.set(chave, r);
+      });
+    lista = [...mapa.values()];
+  }
+  visiveisPal = lista;
+}
+
+function contarPal(l){
+  const c = {ELEGIVEL:0, TRIAGEM:0, NAO:0};
+  l.forEach(r => { if(c[r.resultado] !== undefined) c[r.resultado]++; });
+  return c;
+}
+
+function desenharPal(){
+  const base = visiveisPal, total = base.length, c = contarPal(base);
+
+  const kp = $('kpis-pal'); kp.innerHTML = '';
+  [[total,'Avaliações de paliativos'],
+   [c.ELEGIVEL,'Elegíveis ('+pct(c.ELEGIVEL,total)+')'],
+   [c.TRIAGEM,'Triagens positivas, a discutir ('+pct(c.TRIAGEM,total)+')'],
+   [c.NAO,'Sem indicativo ('+pct(c.NAO,total)+')']].forEach(([v,t])=>{
+    const d = el('div','kpi'); d.appendChild(el('b',null,v)); d.appendChild(el('span',null,t)); kp.appendChild(d);
+  });
+
+  const pi = $('pilha-pal'); pi.innerHTML = ''; const lg = $('leg-pal'); lg.innerHTML = '';
+  ['ELEGIVEL','TRIAGEM','NAO'].forEach(k=>{
+    const rp = RES_PAL[k];
+    if(c[k]){ const s = el('div', rp.css); s.style.width = (c[k]*100/total)+'%'; s.title = rp.nome+': '+c[k]; pi.appendChild(s); }
+    const d = el('div'); d.appendChild(el('b',null,c[k]));
+    const rot = el('span','nota'); rot.appendChild(el('span','dot '+rp.css));
+    rot.appendChild(document.createTextNode(rp.nome+' · '+pct(c[k],total)));
+    d.appendChild(rot); lg.appendChild(d);
+  });
+  if(!total) pi.appendChild(el('div'));
+
+  // por microárea
+  const g = new Map();
+  base.forEach(r=>{
+    const k = r.microarea || '(sem microárea)';
+    if(!g.has(k)) g.set(k,{n:0,ELEGIVEL:0,TRIAGEM:0,NAO:0});
+    const o = g.get(k); o.n++; if(o[r.resultado] !== undefined) o[r.resultado]++;
+  });
+  const tb = $('t-micro-pal'); tb.innerHTML = '';
+  const linhas = [...g.entries()].sort((a,b)=> a[0].localeCompare(b[0],'pt-BR',{numeric:true}));
+  if(!linhas.length){ const tr=el('tr'); const td=el('td',null,'Sem dados.'); td.colSpan=5; tr.appendChild(td); tb.appendChild(tr); }
+  linhas.forEach(([k,o])=>{
+    const tr = el('tr'); tr.appendChild(el('td',null,k));
+    [o.n,o.ELEGIVEL,o.TRIAGEM,o.NAO].forEach(v => tr.appendChild(el('td','c',v)));
+    tb.appendChild(tr);
+  });
+
+  desenharCasos();
+}
+
+function desenharCasos(){
+  const modo = $('f-casos').value, q = $('busca-pal').value.trim().toLowerCase();
+  let lista = visiveisPal.filter(r =>
+    (modo === 'todos' || (modo === 'discutir' ? r.resultado !== 'NAO' : r.resultado === modo)) &&
+    (!q || (r.paciente||'').toLowerCase().includes(q) || (r.prontuario||'').toLowerCase().includes(q) || (r.rua||'').toLowerCase().includes(q)));
+  lista = lista.slice().sort((a,b)=> (ORDEM_PAL[a.resultado]-ORDEM_PAL[b.resultado]) || (b.qtd_spict-a.qtd_spict) || (b.qtd_triagem-a.qtd_triagem) || (b.data||'').localeCompare(a.data||''));
+  window._listaCasos = lista;
+  $('contagem-pal').textContent = lista.length + ' caso(s) na lista' + (lista.length>500 ? ' (mostrando os 500 primeiros; use os filtros ou exporte o CSV)' : '');
+  const tb = $('t-casos'); tb.innerHTML = '';
+  lista.slice(0,500).forEach(r=>{
+    const tr = el('tr');
+    [dataBR(r.data), r.acs, r.microarea, r.paciente].forEach(v => tr.appendChild(el('td',null,v)));
+    tr.appendChild(el('td','c',r.idade ?? ''));
+    tr.appendChild(el('td',null,r.prontuario || ''));
+    tr.appendChild(el('td','c',r.qtd_triagem + '/' + TOTAL_TRIAGEM));
+    tr.appendChild(el('td','c',r.qtd_spict));
+    const tdr = el('td'); const rp = RES_PAL[r.resultado] || RES_PAL.NAO;
+    tdr.appendChild(el('span','tag '+rp.css, rp.nome)); tr.appendChild(tdr);
+    tb.appendChild(tr);
+  });
+  if(!lista.length){ const tr=el('tr'); const td=el('td',null,'Nenhum caso encontrado.'); td.colSpan=9; tr.appendChild(td); tb.appendChild(tr); }
+}
+
+function exportarCSVPal(){
+  const lista = window._listaCasos || [];
+  if(!lista.length){ msg('Não há casos de paliativos para exportar.','erro'); return; }
+  const cab = ['Data','TACS','Microárea','Rua/localidade','Paciente','Prontuário','Idade','Itens positivos Etapa 1','Indicadores SPICT-BR','Condições avançadas','Resultado','Observação'];
+  const esc = v => { const s = (v===null||v===undefined) ? '' : String(v); return /[";\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const linhas = [cab.map(esc).join(';')];
+  lista.forEach(r => linhas.push([dataBR(r.data), r.acs, r.microarea, r.rua, r.paciente, r.prontuario, r.idade,
+    r.qtd_triagem, r.qtd_spict, (r.condicoes||[]).map(k=>NOME_COND[k]||k).join(', '),
+    (RES_PAL[r.resultado]||RES_PAL.NAO).nome, r.observacao].map(esc).join(';')));
+  const blob = new Blob(['﻿'+linhas.join('\r\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'cuidados-paliativos-' + new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+
 /* ========== CSV ========== */
 function exportarCSV(){
   const lista = window._listaTabela || [];
@@ -394,11 +568,14 @@ async function entrar(){
   $('btn-sair').onclick = $('btn-sair-negado').onclick = ()=>sb.auth.signOut();
   $('btn-atualizar').onclick = carregar;
   $('btn-csv').onclick = exportarCSV;
+  $('btn-csv-pal').onclick = exportarCSVPal;
+  $('f-casos').addEventListener('change', desenharCasos);
+  $('busca-pal').addEventListener('input', desenharCasos);
   $('btn-imprimir').onclick = ()=>window.print();
   ['f-de','f-ate','f-acs','f-micro','f-risco','f-unica'].forEach(id => $(id).addEventListener('change', aplicar));
   $('busca').addEventListener('input', ()=>desenharFamilias($('f-risco').value));
   $('btn-limpar-filtros').onclick = ()=>{
-    ['f-de','f-ate','f-acs','f-micro','f-risco','busca'].forEach(id => $(id).value='');
+    ['f-de','f-ate','f-acs','f-micro','f-risco','busca','busca-pal'].forEach(id => $(id).value='');
     $('f-unica').checked = false; aplicar();
   };
   sb.auth.onAuthStateChange((_ev, sessao)=> verificar(sessao));
