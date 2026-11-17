@@ -11,6 +11,7 @@ Páginas estáticas (HTML + JavaScript puro), banco e login no **Supabase**, pub
 | `index.html` | Todos | Login e tela inicial com os cards dos módulos |
 | `risco.html` | TACS | **Pontuação de Risco Familiar** (escala de Coelho-Savassi): sentinelas por pessoa, relação morador/cômodo, escore e risco, planilha por TACS e microárea, impressão da ficha por família |
 | `paliativos.html` | TACS e equipe | **Cuidados Paliativos**: elegibilidade simplificada (Etapa 1) e SPICT-BR (Etapa 2), com resultado automático e impressão da ficha |
+| `offline.js`, `sw.js`, `manifest.webmanifest`, `icon-*.png` | Todos | **Modo offline (PWA)**: instalação no celular, abertura sem internet e fila de envio |
 | `gestor.html` | Gestor | Painel somente leitura: indicadores, distribuição de risco, sentinelas, resumo por TACS e microárea, lista de famílias, exportação CSV |
 
 ### Regras de cálculo
@@ -39,6 +40,9 @@ paliativos.html   elegibilidade para cuidados paliativos
 gestor.html       painel do gestor
 gestor.sql        tabela e permissões do gestor
 paliativos.sql    tabela e permissões dos paliativos
+offline.js        fila offline e sessão local
+sw.js             service worker (cache do app)
+manifest.webmanifest e icon-*.png   instalação como aplicativo
 vercel.json       (opcional) { "cleanUrls": true }
 ```
 
@@ -129,6 +133,15 @@ git push
 Na Vercel, importe o repositório (**Add New → Project**), sem comando de build e sem pasta de saída. Cada `git push` publica de novo em cerca de 30 segundos.
 
 Para abrir `/gestor` sem a extensão, crie um `vercel.json` com `{ "cleanUrls": true }`.
+
+## Uso sem internet (PWA)
+
+- O app pode ser **instalado** no celular (Chrome: menu → *Instalar aplicativo*; iPhone: Safari → Compartilhar → *Adicionar à Tela de Início*).
+- Depois do **primeiro login com internet**, o TACS consegue abrir o app, fazer a pontuação de risco e as avaliações de paliativos **sem sinal**. O que for salvo fica guardado no aparelho e **sobe sozinho** quando a conexão volta (aviso na parte de baixo da tela; há também o botão *Enviar agora*).
+- Registros aguardando envio aparecem na lista com a marca "(aguardando envio)" e podem ser abertos, editados ou descartados.
+- Sem internet **não** dá para abrir registros já enviados, excluir registros enviados nem usar o painel do gestor.
+- Limpar os dados do navegador apaga o que ainda não foi enviado. Envie antes de limpar.
+- Ao publicar uma versão nova, o app atualiza na próxima vez que for aberto com internet.
 
 ## Permissões e segurança
 

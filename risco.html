@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pontuação de Risco Familiar</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f766e">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script src="offline.js"></script>
 <style>
   :root{
     --verde:#00563f; --verde-claro:#e3efe9; --cinza:#f4f6f5; --borda:#d5ddd9; --texto:#1c2b25;
@@ -507,20 +513,10 @@ async function salvar(){
     total_familias:res.total, qtd_rh:res.RH, qtd_r1:res.R1, qtd_r2:res.R2, qtd_r3:res.R3,
     updated_at:new Date().toISOString()
   };
-
-  let q;
-  if(planilhaId) q = await sb.from('planilhas_risco').update(cab).eq('id',planilhaId).select('id').single();
-  else q = await sb.from('planilhas_risco').insert(cab).select('id').single();
-  if(q.error){ msg('msg-app','Erro ao salvar a planilha: '+q.error.message,'erro'); return; }
-  planilhaId = q.data.id;
-
-  const del = await sb.from('familias_risco').delete().eq('planilha_id',planilhaId);
-  if(del.error){ msg('msg-app','Erro ao atualizar famílias: '+del.error.message,'erro'); return; }
-
   const rows = familias.map((f,i)=>{
     const c = calcular(f);
     const o = {
-      planilha_id: planilhaId, ordem: i+1,
+      ordem: i+1,
       prontuario: f.prontuario || null, nome: f.nome,
       moradores: f.moradores, comodos: f.comodos,
       pontos_moradia: c.ptsMoradia, escore_total: c.total, risco: c.risco.cod
@@ -528,32 +524,46 @@ async function salvar(){
     SENTINELAS.forEach(s => { o[s.id] = f.qtd[s.id] || 0; });
     return o;
   });
-  const ins = await sb.from('familias_risco').insert(rows);
-  if(ins.error){ msg('msg-app','Erro ao salvar famílias (os dados continuam na tela, tente de novo): '+ins.error.message,'erro'); return; }
 
-  sujo = false;
-  msg('msg-app','Planilha salva ('+rows.length+' famílias).','ok');
+  const id = planilhaId || TACS.novoId();
+  const r = await TACS.salvar('risco', id, {cab, rows});
+  if(r.status==='erro'){ msg('msg-app','Erro ao salvar (os dados continuam na tela, tente de novo): '+r.erro.message,'erro'); return; }
+  planilhaId = id; sujo = false;
+  if(r.status==='fila') msg('msg-app','Sem internet: planilha guardada neste aparelho ('+rows.length+' famílias). Ela será enviada sozinha quando a conexão voltar.','ok');
+  else msg('msg-app','Planilha salva ('+rows.length+' famílias).','ok');
   carregarLista();
 }
 
 async function carregarLista(){
-  const {data, error} = await sb.from('planilhas_risco')
-    .select('id,data,acs,rua,microarea,total_familias,qtd_rh,qtd_r1,qtd_r2,qtd_r3')
-    .order('data',{ascending:false}).order('created_at',{ascending:false}).limit(100);
+  const pend = TACS.pendentes('risco').map(it=>Object.assign({id:it.id, _pend:true, total_familias:it.payload.rows.length}, it.payload.cab));
+  let data = [], error = null;
+  if(navigator.onLine){
+    const r = await sb.from('planilhas_risco')
+      .select('id,data,acs,rua,microarea,total_familias,qtd_rh,qtd_r1,qtd_r2,qtd_r3')
+      .order('data',{ascending:false}).order('created_at',{ascending:false}).limit(100);
+    data = r.data || []; error = r.error;
+  } else error = {message:'sem conexão'};
   const tb = $('lista'); tb.innerHTML='';
-  if(error){ msg('msg-app','Erro ao carregar planilhas: '+error.message,'erro'); return; }
-  if(!data.length){ tb.innerHTML='<tr><td colspan="10">Nenhuma planilha salva.</td></tr>'; return; }
-  data.forEach(p=>{
+  if(error && !TACS.ehErroRede(error)){ msg('msg-app','Erro ao carregar planilhas: '+error.message,'erro'); return; }
+  data = data.filter(p=>!pend.some(x=>x.id===p.id));
+  const itens = pend.concat(data);
+  if(!itens.length){ tb.innerHTML='<tr><td colspan="10">Nenhuma planilha salva.</td></tr>'; return; }
+  itens.forEach(p=>{
     const tr = document.createElement('tr');
     const [a,m,d] = p.data.split('-');
-    [[d+'/'+m+'/'+a],[p.acs],[p.rua||''],[p.microarea||''],[p.total_familias,'c'],[p.qtd_rh,'c'],[p.qtd_r1,'c'],[p.qtd_r2,'c'],[p.qtd_r3,'c']].forEach(([v,cls])=>{
+    [[d+'/'+m+'/'+a],[p.acs+(p._pend?' (aguardando envio)':'')],[p.rua||''],[p.microarea||''],[p.total_familias,'c'],[p.qtd_rh,'c'],[p.qtd_r1,'c'],[p.qtd_r2,'c'],[p.qtd_r3,'c']].forEach(([v,cls])=>{
       const td=document.createElement('td'); if(cls) td.className=cls; td.textContent=v; tr.appendChild(td);
     });
     const td = document.createElement('td'); td.style.whiteSpace='nowrap';
     const bo = document.createElement('button'); bo.className='secundario pequeno'; bo.textContent='Abrir';
     bo.onclick = ()=>abrir(p.id);
-    const be = document.createElement('button'); be.className='perigo'; be.textContent='Excluir'; be.style.marginLeft='6px';
+    const be = document.createElement('button'); be.className='perigo'; be.textContent=p._pend?'Descartar':'Excluir'; be.style.marginLeft='6px';
     be.onclick = async ()=>{
+      if(p._pend){
+        if(!confirm('Descartar esta planilha que ainda não foi enviada? Ela será perdida.')) return;
+        TACS.descartar('risco',p.id); carregarLista(); return;
+      }
+      if(!navigator.onLine){ msg('msg-app','Sem internet: não dá para excluir agora.','erro'); return; }
       if(!confirm('Excluir a planilha de '+p.acs+' ('+d+'/'+m+'/'+a+') e todas as suas famílias?')) return;
       const r = await sb.from('planilhas_risco').delete().eq('id',p.id);
       if(r.error) msg('msg-app','Erro ao excluir: '+r.error.message,'erro');
@@ -563,22 +573,29 @@ async function carregarLista(){
   });
 }
 
-async function abrir(id){
-  if(sujo && !confirm('Há alterações não salvas na tela. Abrir outra planilha mesmo assim?')) return;
-  msg('msg-app','Abrindo...');
-  const p = await sb.from('planilhas_risco').select('*').eq('id',id).single();
-  if(p.error){ msg('msg-app','Erro: '+p.error.message,'erro'); return; }
-  const f = await sb.from('familias_risco').select('*').eq('planilha_id',id).order('ordem');
-  if(f.error){ msg('msg-app','Erro: '+f.error.message,'erro'); return; }
+function carregarNaTela(id, cab, linhas){
   planilhaId = id;
-  $('data').value=p.data.data; $('acs').value=p.data.acs; $('rua').value=p.data.rua||''; $('microarea').value=p.data.microarea||'';
-  familias = f.data.map(r=>{
+  $('data').value=cab.data; $('acs').value=cab.acs; $('rua').value=cab.rua||''; $('microarea').value=cab.microarea||'';
+  familias = linhas.map(r=>{
     const qtd = {}; SENTINELAS.forEach(s => qtd[s.id] = r[s.id] || 0);
     return {prontuario:r.prontuario||'', nome:r.nome, moradores:r.moradores, comodos:r.comodos, qtd};
   });
   limparForm(); renderLista(); sujo = false;
   msg('msg-app','Planilha carregada. Use "Editar" numa família para alterar.','ok');
   $('tbody').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function abrir(id){
+  if(sujo && !confirm('Há alterações não salvas na tela. Abrir outra planilha mesmo assim?')) return;
+  const pend = TACS.pendentes('risco').find(it=>it.id===id);
+  if(pend){ carregarNaTela(id, pend.payload.cab, pend.payload.rows); return; }
+  if(!navigator.onLine){ msg('msg-app','Sem internet: só dá para abrir planilhas que ainda não foram enviadas.','erro'); return; }
+  msg('msg-app','Abrindo...');
+  const p = await sb.from('planilhas_risco').select('*').eq('id',id).single();
+  if(p.error){ msg('msg-app','Erro: '+p.error.message,'erro'); return; }
+  const f = await sb.from('familias_risco').select('*').eq('planilha_id',id).order('ordem');
+  if(f.error){ msg('msg-app','Erro: '+f.error.message,'erro'); return; }
+  carregarNaTela(id, p.data, f.data);
 }
 
 /* ========= LOGIN ========= */
@@ -612,11 +629,15 @@ async function entrar(){
   if(SUPABASE_URL.startsWith('COLE_') || SUPABASE_ANON_KEY.startsWith('COLE_')){
     $('aviso-config').classList.remove('hidden'); return;
   }
+  TACS.url = SUPABASE_URL;
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  TACS.aoSincronizar = carregarLista;
+  TACS.iniciar(sb);
   $('btn-sair').onclick = ()=>sb.auth.signOut();
-  sb.auth.onAuthStateChange((_ev, sessao)=> mostrar(!!sessao, sessao));
+  sb.auth.onAuthStateChange((_ev, sessao)=>{ sessao = sessao || TACS.sessaoLocal(); mostrar(!!sessao, sessao); });
   const {data} = await sb.auth.getSession();
-  mostrar(!!data.session, data.session);
+  const sessao = data.session || TACS.sessaoLocal();   // sem internet, usa a sessão guardada
+  mostrar(!!sessao, sessao);
 })();
 </script>
 </body>
