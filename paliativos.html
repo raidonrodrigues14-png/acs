@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Elegibilidade para Cuidados Paliativos</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f766e">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script src="offline.js"></script>
 <style>
   :root{
     --verde:#00563f; --verde-claro:#e3efe9; --cinza:#f4f6f5; --borda:#d5ddd9; --texto:#1c2b25; --mudo:#55645d;
@@ -441,25 +447,32 @@ async function salvar(){
     observacao: $('obs').value.trim() || null, updated_at: new Date().toISOString()
   };
   msg('msg-app','Salvando...');
-  const q = editandoId
-    ? await sb.from('elegibilidade_paliativa').update(linha).eq('id', editandoId).select('id').single()
-    : await sb.from('elegibilidade_paliativa').insert(linha).select('id').single();
-  if(q.error){ msg('msg-app','Erro ao salvar: '+q.error.message,'erro'); return; }
-  editandoId = q.data.id; sujo = false;
-  msg('msg-app','Avaliação salva.','ok');
+  const id = editandoId || TACS.novoId();
+  const r = await TACS.salvar('paliativo', id, {linha});
+  if(r.status==='erro'){ msg('msg-app','Erro ao salvar: '+r.erro.message,'erro'); return; }
+  editandoId = id; sujo = false;
+  if(r.status==='fila') msg('msg-app','Sem internet: avaliação guardada neste aparelho. Ela será enviada sozinha quando a conexão voltar.','ok');
+  else msg('msg-app','Avaliação salva.','ok');
   carregarLista();
 }
 
 async function carregarLista(){
-  const {data, error} = await sb.from('elegibilidade_paliativa')
-    .select('id,data,paciente,acs,microarea,qtd_triagem,qtd_spict,resultado')
-    .order('data',{ascending:false}).order('created_at',{ascending:false}).limit(100);
+  const pend = TACS.pendentes('paliativo').map(it=>Object.assign({id:it.id, _pend:true}, it.payload.linha));
+  let data = [], error = null;
+  if(navigator.onLine){
+    const r = await sb.from('elegibilidade_paliativa')
+      .select('id,data,paciente,acs,microarea,qtd_triagem,qtd_spict,resultado')
+      .order('data',{ascending:false}).order('created_at',{ascending:false}).limit(100);
+    data = r.data || []; error = r.error;
+  } else error = {message:'sem conexão'};
   const tb = $('lista'); tb.innerHTML = '';
-  if(error){ msg('msg-app','Erro ao carregar a lista: '+error.message,'erro'); return; }
-  if(!data.length){ const tr=el('tr'); const td=el('td',null,'Nenhuma avaliação salva.'); td.colSpan=8; tr.appendChild(td); tb.appendChild(tr); return; }
-  data.forEach(a=>{
+  if(error && !TACS.ehErroRede(error)){ msg('msg-app','Erro ao carregar a lista: '+error.message,'erro'); return; }
+  data = data.filter(a=>!pend.some(x=>x.id===a.id));
+  const itens = pend.concat(data);
+  if(!itens.length){ const tr=el('tr'); const td=el('td',null,'Nenhuma avaliação salva.'); td.colSpan=8; tr.appendChild(td); tb.appendChild(tr); return; }
+  itens.forEach(a=>{
     const tr = el('tr');
-    [dataBR(a.data), a.paciente, a.acs, a.microarea||''].forEach(v => tr.appendChild(el('td',null,v)));
+    [dataBR(a.data), a.paciente + (a._pend ? ' (aguardando envio)' : ''), a.acs, a.microarea||''].forEach(v => tr.appendChild(el('td',null,v)));
     tr.appendChild(el('td','c',a.qtd_triagem + '/' + TOTAL_TRIAGEM));
     tr.appendChild(el('td','c',a.qtd_spict));
     const tdr = el('td'); const rs = RESULTADOS[a.resultado] || RESULTADOS.NAO;
@@ -467,8 +480,13 @@ async function carregarLista(){
     tdr.appendChild(tag); tr.appendChild(tdr);
     const ta = el('td'); ta.style.whiteSpace = 'nowrap';
     const bo = el('button','secundario pequeno','Abrir'); bo.onclick = ()=>abrir(a.id);
-    const bx = el('button','perigo pequeno','Excluir'); bx.style.marginLeft='6px';
+    const bx = el('button','perigo pequeno', a._pend ? 'Descartar' : 'Excluir'); bx.style.marginLeft='6px';
     bx.onclick = async ()=>{
+      if(a._pend){
+        if(!confirm('Descartar esta avaliação que ainda não foi enviada? Ela será perdida.')) return;
+        TACS.descartar('paliativo', a.id); carregarLista(); return;
+      }
+      if(!navigator.onLine){ msg('msg-app','Sem internet: não dá para excluir agora.','erro'); return; }
       if(!confirm('Excluir a avaliação de '+a.paciente+'?')) return;
       const r = await sb.from('elegibilidade_paliativa').delete().eq('id', a.id);
       if(r.error) msg('msg-app','Erro ao excluir: '+r.error.message,'erro');
@@ -480,11 +498,18 @@ async function carregarLista(){
 
 async function abrir(id){
   if(sujo && !confirm('Há alterações não salvas. Abrir outra avaliação mesmo assim?')) return;
-  const {data, error} = await sb.from('elegibilidade_paliativa').select('*').eq('id', id).single();
-  if(error){ msg('msg-app','Erro: '+error.message,'erro'); return; }
+  let reg;
+  const pend = TACS.pendentes('paliativo').find(it=>it.id===id);
+  if(pend) reg = pend.payload.linha;
+  else {
+    if(!navigator.onLine){ msg('msg-app','Sem internet: só dá para abrir avaliações que ainda não foram enviadas.','erro'); return; }
+    const {data, error} = await sb.from('elegibilidade_paliativa').select('*').eq('id', id).single();
+    if(error){ msg('msg-app','Erro: '+error.message,'erro'); return; }
+    reg = data;
+  }
   editandoId = id; sujo = false;
-  preencher(data);
-  $('titulo-form').textContent = 'Editando a avaliação de ' + data.paciente;
+  preencher(reg);
+  $('titulo-form').textContent = 'Editando a avaliação de ' + reg.paciente;
   msg('msg-app','Avaliação carregada.','ok');
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -552,11 +577,14 @@ async function entrar(){
   if(!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL.startsWith('COLE_') || SUPABASE_ANON_KEY.startsWith('COLE_')){
     $('aviso-config').classList.remove('hidden'); return;
   }
+  TACS.url = SUPABASE_URL;
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  TACS.aoSincronizar = carregarLista;
+  TACS.iniciar(sb);
   $('btn-sair').onclick = ()=>sb.auth.signOut();
-  sb.auth.onAuthStateChange((_ev, sessao)=> mostrar(sessao));
+  sb.auth.onAuthStateChange((_ev, sessao)=> mostrar(sessao || TACS.sessaoLocal()));
   const {data} = await sb.auth.getSession();
-  mostrar(data.session);
+  mostrar(data.session || TACS.sessaoLocal());   // sem internet, usa a sessão guardada
 })();
 </script>
 </body>
