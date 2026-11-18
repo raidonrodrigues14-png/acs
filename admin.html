@@ -3,307 +3,383 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Administração — Portal TACS</title>
+<title>Admin — Portal TACS</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="acesso.js"></script>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#0f766e">
+<meta name="theme-color" content="#2a3840">
 <style>
   :root{
-    --fundo:#f7faf9; --branco:#fff; --texto:#17302b; --mudo:#62766f; --linha:#d3e2de; --linha-forte:#a9c7c0;
-    --acento:#0f766e; --acento-bg:#eaf5f3; --perigo:#a12a3d; --aviso:#a87a00; --ok:#2e7d32;
+    color-scheme:dark;
+    --bg:#0c1114; --painel:#141a1e; --painel2:#1b2328; --borda:#27323a; --texto:#eef2f4; --mudo:#8d9ba3;
+    --verde:#4ade80; --amarelo:#fbbf24; --vermelho:#f87171; --azul:#60a5fa; --roxo:#a78bfa;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--fundo);color:var(--texto)}
-  .page{max-width:1100px;margin:0 auto;padding:18px 16px 60px}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--texto);min-height:100vh}
   .hidden{display:none!important}
-  .topo{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--linha);margin-bottom:18px}
-  .topo h1{margin:0;font-size:1.15rem;font-weight:600}
-  .topo .quem{display:flex;align-items:center;gap:12px;font-size:.85rem;color:var(--mudo);flex-wrap:wrap}
-  a.voltar{color:var(--acento);text-decoration:none;font-size:.88rem;border-bottom:1px solid var(--linha-forte)}
-  button{font:inherit;cursor:pointer}
-  .btn{padding:9px 16px;border:1px solid var(--acento);border-radius:9px;background:var(--acento);color:#fff;font-weight:500}
-  .btn.sec{background:#fff;color:var(--acento)}
-  .btn.perigo{background:#fff;color:var(--perigo);border-color:#e3a7b1}
-  .btn.peq{padding:5px 10px;font-size:.8rem}
-  .btn:disabled{opacity:.55;cursor:default}
-  .card{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:18px 18px 16px;margin-bottom:16px}
-  .card h2{margin:0 0 4px;font-size:1.02rem;font-weight:600}
-  .card .sub{margin:0 0 14px;color:var(--mudo);font-size:.85rem}
+  button{font:inherit;cursor:pointer;color:inherit}
+  input,select{font:inherit;color:var(--texto);background:var(--painel);border:1px solid var(--borda);border-radius:10px;padding:10px 12px;width:100%}
+  input:focus,select:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(96,165,250,.18)}
+
+  header{background:linear-gradient(135deg,#2a3840,#3d4f58);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{margin:0;font-size:1.1rem;font-weight:700}
+  header small{display:block;font-size:.8rem;color:#c3ced4;margin-top:2px}
+  .barra{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .bt{padding:9px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);font-weight:600;font-size:.9rem;text-decoration:none;color:var(--texto)}
+  .bt:hover{background:rgba(255,255,255,.16)}
+  main{max-width:1200px;margin:0 auto;padding:22px 20px 60px}
+
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-  .kpi{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:14px 16px}
-  .kpi b{display:block;font-size:1.7rem;font-weight:600}
-  .kpi span{font-size:.78rem;color:var(--mudo)}
-  .kpi.venc b{color:var(--perigo)} .kpi.aviso b{color:var(--aviso)}
-  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;align-items:end}
-  label{display:block;font-size:.72rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--mudo);margin-bottom:5px}
-  input,select{width:100%;padding:9px 11px;border:1px solid var(--linha-forte);border-radius:9px;font:inherit;background:#fff;color:var(--texto)}
-  input:focus,select:focus{outline:none;border-color:var(--acento);box-shadow:0 0 0 3px rgba(15,118,110,.12)}
-  .linha{display:flex;gap:8px}
-  .tabela{overflow-x:auto;margin-top:10px}
-  table{width:100%;border-collapse:collapse;font-size:.88rem}
-  th{text-align:left;font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--mudo);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--linha);white-space:nowrap}
-  td{padding:9px 10px;border-bottom:1px solid #edf3f1;vertical-align:middle}
-  td.acoes{white-space:nowrap;display:flex;gap:6px;flex-wrap:wrap}
-  .tag{display:inline-block;font-size:.72rem;font-weight:500;border-radius:999px;padding:2px 10px;border:1px solid}
-  .tag.ok{color:var(--ok);border-color:#abd4ad}.tag.aviso{color:var(--aviso);border-color:#e6cd7c}
-  .tag.venc{color:var(--perigo);border-color:#e3a7b1}.tag.off{color:var(--mudo);border-color:var(--linha-forte)}
-  .msg{margin-top:10px;font-size:.88rem}.msg.erro{color:var(--perigo)}.msg.ok{color:var(--ok)}
-  .cred{margin-top:12px;padding:12px 14px;background:var(--acento-bg);border:1px solid var(--linha-forte);border-radius:10px;font-size:.9rem;white-space:pre-line}
-  .filtros{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
-  details summary{cursor:pointer;font-weight:600;font-size:1.02rem}
-  .negado{max-width:420px;margin:12vh auto;text-align:center;background:#fff;border:1px solid var(--linha);border-radius:14px;padding:28px}
+  .kpi{background:var(--painel);border:1px solid var(--borda);border-radius:14px;padding:14px 16px;text-align:left;transition:border-color .15s}
+  .kpi:hover{border-color:#3b4a54}
+  .kpi.sel{border-color:var(--azul);box-shadow:0 0 0 1px var(--azul)}
+  .kpi b{display:block;font-size:1.9rem;line-height:1.1}
+  .kpi span{display:block;margin-top:6px;font-size:.78rem;color:var(--mudo)}
+  .k-ok b{color:var(--verde)}.k-aviso b{color:var(--amarelo)}.k-venc b{color:var(--vermelho)}.k-off b{color:var(--mudo)}.k-ubs b{color:var(--roxo)}
+
+  .filtros{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .filtros .busca{flex:1 1 260px}.filtros .sel{flex:0 1 240px}
+
+  .painel{background:var(--painel);border:1px solid var(--borda);border-radius:14px;overflow:hidden}
+  .rolagem{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:820px}
+  th{text-align:left;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--mudo);font-weight:600;padding:11px 16px;border-bottom:1px solid var(--borda)}
+  td{padding:13px 16px;border-bottom:1px solid #1d262c;vertical-align:middle}
+  tr:last-child td{border-bottom:0}
+  td .nome{font-weight:700}
+  td small{display:block;color:var(--mudo);font-size:.76rem;margin-top:2px}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;border-radius:8px;padding:5px 10px;white-space:nowrap}
+  .b-ok{background:rgba(74,222,128,.12);color:var(--verde)}.b-aviso{background:rgba(251,191,36,.12);color:var(--amarelo)}
+  .b-venc{background:rgba(248,113,113,.14);color:var(--vermelho)}.b-off{background:rgba(141,155,163,.14);color:var(--mudo)}
+  .acoes{display:flex;gap:8px;flex-wrap:wrap}
+  .a{padding:7px 12px;border-radius:9px;border:1px solid var(--borda);background:var(--painel2);font-weight:600;font-size:.84rem;white-space:nowrap}
+  .a:hover{filter:brightness(1.2)}
+  .a.pago{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.3);color:var(--verde)}
+  .a.bloq{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.3);color:var(--vermelho)}
+  .vazio{padding:28px;text-align:center;color:var(--mudo)}
+  .msg{margin:12px 0 0;font-size:.88rem;color:var(--mudo)}.msg.erro{color:var(--vermelho)}.msg.ok{color:var(--verde)}
+
+  dialog.modal{background:var(--painel);color:var(--texto);border:1px solid var(--borda);border-radius:16px;padding:22px;width:min(480px,calc(100% - 28px));max-height:90vh;overflow:auto}
+  dialog.modal::backdrop{background:rgba(0,0,0,.6)}
+  dialog.modal h3{margin:0 0 14px;font-size:1.1rem}
+  .campo{margin-bottom:12px}
+  .campo label{display:block;font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--mudo);margin-bottom:5px;font-weight:600}
+  .campo .linha{display:flex;gap:8px}
+  .fim{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+  .p{padding:10px 18px;border-radius:10px;border:1px solid var(--azul);background:var(--azul);color:#08121c;font-weight:700}
+  .p:disabled{opacity:.55;cursor:default}
+  .s{padding:10px 18px;border-radius:10px;border:1px solid var(--borda);background:var(--painel2);font-weight:600}
+  .cred{white-space:pre-line;background:var(--painel2);border:1px solid var(--borda);border-radius:10px;padding:12px 14px;font-size:.9rem;margin-bottom:6px}
+  .mini{width:100%;border-collapse:collapse;font-size:.86rem;min-width:0}
+  .mini td,.mini th{padding:8px 6px}
+  .negado{max-width:420px;margin:14vh auto;text-align:center;background:var(--painel);border:1px solid var(--borda);border-radius:14px;padding:28px}
+  .negado a{color:var(--azul)}
+  @media(max-width:560px){main{padding:16px 12px 50px}header{padding:12px 14px}}
 </style>
 </head>
 <body>
-<div class="page">
 
-  <section id="tela-negado" class="hidden">
-    <div class="negado">
-      <h2>Sem permissão</h2>
-      <p>Esta área é só do administrador do sistema.</p>
-      <p><a class="voltar" href="./">← Voltar ao início</a></p>
-    </div>
-  </section>
+<section id="tela-negado" class="hidden">
+  <div class="negado">
+    <h2>Sem permissão</h2>
+    <p>Esta área é só do administrador do sistema.</p>
+    <p><a href="./">← Voltar ao início</a></p>
+  </div>
+</section>
 
-  <section id="tela-app" class="hidden">
-    <div class="topo">
-      <h1>Administração · Portal TACS</h1>
-      <div class="quem"><a class="voltar" href="./">← Início</a><span id="usuario"></span><button class="btn sec peq" id="btn-sair">Sair</button></div>
+<section id="tela-app" class="hidden">
+  <header>
+    <div><h1>Admin · Logins e cobrança</h1><small id="usuario"></small></div>
+    <div class="barra">
+      <button class="bt" id="btn-novo">＋ Novo login</button>
+      <button class="bt" id="btn-ubs">🏥 UBS</button>
+      <button class="bt" id="btn-pag">💰 Pagamentos</button>
+      <a class="bt" href="./">← Início</a>
+      <button class="bt" id="btn-sair">Sair</button>
     </div>
+  </header>
 
-    <div class="kpis">
-      <div class="kpi"><b id="k-ativos">0</b><span>Logins com acesso</span></div>
-      <div class="kpi aviso"><b id="k-vencendo">0</b><span>Vencem em até 7 dias</span></div>
-      <div class="kpi venc"><b id="k-vencidos">0</b><span>Vencidos</span></div>
-      <div class="kpi"><b id="k-ubs">0</b><span>UBS ativas</span></div>
+  <main>
+    <div class="kpis" id="kpis"></div>
+    <div class="filtros">
+      <input class="busca" id="busca" placeholder="Buscar por nome, e-mail ou UBS...">
+      <select class="sel" id="f-ubs"></select>
+      <button class="bt" id="btn-atualizar" style="background:var(--painel);border-color:var(--borda)">Atualizar</button>
     </div>
-
-    <div class="card">
-      <h2>UBS</h2>
-      <p class="sub">Cada UBS enxerga apenas os próprios dados. Cadastre a UBS antes de criar os logins dela.</p>
-      <div class="grade">
-        <div><label for="ubs-nome">Nome da UBS</label><input id="ubs-nome" placeholder="Ex.: UBS Centro"></div>
-        <div><label for="ubs-mun">Município</label><input id="ubs-mun"></div>
-        <div><button class="btn" id="btn-ubs">Adicionar UBS</button></div>
-      </div>
-      <div id="msg-ubs" class="msg"></div>
-      <div class="tabela"><table><thead><tr><th>UBS</th><th>Município</th><th>Logins</th><th>Situação</th><th></th></tr></thead><tbody id="t-ubs"></tbody></table></div>
-    </div>
-
-    <div class="card">
-      <h2>Novo login</h2>
-      <p class="sub">O login já nasce vinculado à UBS e com a data de vencimento escolhida. Passe e-mail e senha ao usuário.</p>
-      <div class="grade">
-        <div><label for="n-nome">Nome</label><input id="n-nome" placeholder="Nome do TACS ou gestor"></div>
-        <div><label for="n-email">E-mail (login)</label><input id="n-email" type="email" autocomplete="off"></div>
-        <div><label for="n-senha">Senha (mín. 8)</label>
-          <div class="linha"><input id="n-senha" autocomplete="off"><button class="btn sec peq" id="btn-gerar" type="button">Gerar</button></div></div>
-        <div><label for="n-ubs">UBS</label><select id="n-ubs"></select></div>
-        <div><label for="n-papel">Papel</label><select id="n-papel"><option value="tacs">TACS (registra)</option><option value="gestor">Gestor (lê a UBS)</option></select></div>
-        <div><label for="n-venc">Acesso até</label><input id="n-venc" type="date"></div>
-        <div><button class="btn" id="btn-criar">Criar login</button></div>
-      </div>
-      <div id="msg-novo" class="msg"></div>
-      <div id="cred" class="cred hidden"></div>
-    </div>
-
-    <div class="card">
-      <h2>Logins e assinaturas</h2>
-      <p class="sub">Renovar soma os meses a partir do vencimento atual (ou de hoje, se já venceu) e registra o pagamento.</p>
-      <div class="filtros">
-        <div><label for="f-ubs">UBS</label><select id="f-ubs"></select></div>
-        <div><label for="f-sit">Situação</label><select id="f-sit"><option value="">Todas</option><option value="ok">Ativos</option><option value="aviso">Vencem em 7 dias</option><option value="venc">Vencidos</option><option value="off">Desativados</option></select></div>
-        <div><label for="f-busca">Buscar</label><input id="f-busca" placeholder="nome ou e-mail"></div>
-      </div>
-      <div id="msg-lista" class="msg"></div>
-      <div class="tabela"><table><thead><tr><th>Nome</th><th>E-mail</th><th>UBS</th><th>Papel</th><th>Vencimento</th><th>Situação</th><th>Último acesso</th><th></th></tr></thead><tbody id="t-usu"></tbody></table></div>
-    </div>
-
-    <div class="card">
-      <details>
-        <summary>Últimos pagamentos registrados</summary>
-        <div class="tabela"><table><thead><tr><th>Data</th><th>Login</th><th>Meses</th><th>Valor</th><th>Novo vencimento</th></tr></thead><tbody id="t-pag"></tbody></table></div>
-      </details>
-    </div>
-  </section>
-</div>
+    <div id="msg-lista" class="msg"></div>
+    <div class="painel"><div class="rolagem">
+      <table>
+        <thead><tr><th>Login</th><th>UBS</th><th>Papel</th><th>Vencimento</th><th>Situação</th><th>Ações</th></tr></thead>
+        <tbody id="t-usu"></tbody>
+      </table>
+    </div></div>
+  </main>
+</section>
 
 <script>
 const SUPABASE_URL = 'https://qnonohzczdvowkssjyaa.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_CKcc-9TIe0puzdeYA9D6qg_N6MslJEj';
+const FUNCAO_ADMIN = 'hyper-action';   // nome (slug) da Edge Function no Supabase
 const $ = id => document.getElementById(id);
-let sb = null, usuarios = [], ubsLista = [], pagamentos = [];
+let sb = null, usuarios = [], ubsLista = [], pagamentos = [], filtroKpi = 'todos';
 
 /* ---------- utilidades ---------- */
 const hoje = () => new Date().toLocaleDateString('en-CA', {timeZone:'America/Sao_Paulo'});
 function somarDias(iso, n){ const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
 function dias(venc){ return venc ? Math.round((Date.parse(venc + 'T00:00:00Z') - Date.parse(hoje() + 'T00:00:00Z')) / 86400000) : null; }
 function dataBR(iso){ if(!iso) return '—'; const p = String(iso).slice(0,10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
-function situacao(u){
-  if(u.papel === 'admin') return {t:'Administrador', c:'ok'};
-  if(!u.ativo) return {t:'Desativado', c:'off'};
-  const d = dias(u.vencimento);
-  if(d === null || d < 0) return {t:'Vencido', c:'venc'};
-  if(d === 0) return {t:'Vence hoje', c:'aviso'};
-  if(d <= 7) return {t:'Vence em ' + d + ' d', c:'aviso'};
-  return {t:'Ativo', c:'ok'};
-}
+function dataLocalBR(ts){ return new Date(ts).toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'}); }
 function el(tag, cls, txt){ const e = document.createElement(tag); if(cls) e.className = cls; if(txt != null) e.textContent = txt; return e; }
-function msg(id, t, tipo){ const e = $(id); e.textContent = t || ''; e.className = 'msg ' + (tipo || ''); }
-function botao(txt, cls, fn){ const b = el('button', 'btn peq ' + cls, txt); b.onclick = fn; return b; }
 function senhaAleatoria(){
   const alf = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const v = new Uint32Array(10); crypto.getRandomValues(v);
   return Array.from(v, x => alf[x % alf.length]).join('');
 }
+function situacao(u){
+  if(!u.ativo) return {c:'off', t:'⛔ Bloqueado', ord:3};
+  const d = dias(u.vencimento);
+  if(d === null) return {c:'venc', t:'● Sem vencimento', ord:0};
+  if(d < 0) return {c:'venc', t:'⛔ Vencido há ' + (-d) + ' d', ord:0};
+  if(d === 0) return {c:'aviso', t:'⏳ Vence hoje', ord:1};
+  if(d <= 7) return {c:'aviso', t:'⏳ Vence em ' + d + ' d', ord:1};
+  return {c:'ok', t:'✓ Em dia · ' + d + ' d', ord:2};
+}
 async function chamar(corpo){
-  const {data, error} = await sb.functions.invoke('admin-usuarios', {body: corpo});
+  const {data, error} = await sb.functions.invoke(FUNCAO_ADMIN, {body: corpo});
   if(error){
     let m = error.message;
     try{ const j = await error.context.json(); if(j && j.erro) m = j.erro; }catch(e){}
-    if(/Failed to send|NetworkError|fetch/i.test(m)) m = 'Não foi possível falar com a função admin-usuarios. Ela foi publicada no Supabase?';
+    if(/Failed to send|NetworkError|fetch/i.test(m)) m = 'Não foi possível falar com a função ' + FUNCAO_ADMIN + '. Confira o nome dela no Supabase.';
     throw new Error(m);
   }
   if(data && data.erro) throw new Error(data.erro);
   return data;
 }
 
+/* ---------- janelas (modais) ---------- */
+function campo(rotulo, ...elementos){
+  const d = el('div', 'campo'); d.appendChild(el('label', null, rotulo));
+  if(elementos.length > 1){ const l = el('div', 'linha'); elementos.forEach(x => l.appendChild(x)); d.appendChild(l); } else d.appendChild(elementos[0]);
+  return d;
+}
+function entrada(tipo, valor){ const i = el('input'); i.type = tipo; if(valor != null) i.value = valor; i.autocomplete = 'off'; return i; }
+function seletor(opcoes, valor){
+  const s = el('select'); opcoes.forEach(([v, t]) => { const o = el('option', null, t); o.value = v; s.appendChild(o); });
+  if(valor != null) s.value = valor; return s;
+}
+function botao(txt, cls, fn){ const b = el('button', cls, txt); b.type = 'button'; if(fn) b.onclick = fn; return b; }
+function modal(titulo, montar){
+  const dlg = el('dialog', 'modal'); dlg.appendChild(el('h3', null, titulo));
+  const corpo = el('div'); dlg.appendChild(corpo);
+  const fechar = () => { try{ dlg.close(); }catch(e){} dlg.remove(); };
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.appendChild(dlg);
+  montar(corpo, fechar);
+  dlg.showModal();
+}
+const ubsAtivas = () => ubsLista.filter(x => x.ativa).map(x => [x.id, x.nome]);
+
 /* ---------- dados ---------- */
 async function carregar(){
+  msg('msg-lista', '');
   const [u, b, p] = await Promise.all([
     sb.rpc('admin_listar'),
     sb.from('ubs').select('*').order('nome'),
-    sb.from('pagamentos').select('*').order('created_at', {ascending:false}).limit(50)
+    sb.from('pagamentos').select('*').order('created_at', {ascending:false}).limit(1000)
   ]);
   if(u.error){ msg('msg-lista', 'Erro ao carregar logins: ' + u.error.message, 'erro'); return; }
-  if(b.error){ msg('msg-ubs', 'Erro ao carregar UBS: ' + b.error.message, 'erro'); return; }
-  usuarios = u.data || []; ubsLista = b.data || []; pagamentos = p.data || [];
+  if(b.error){ msg('msg-lista', 'Erro ao carregar UBS: ' + b.error.message, 'erro'); return; }
+  usuarios = (u.data || []).filter(x => x.papel !== 'admin');
+  ubsLista = b.data || []; pagamentos = p.data || [];
   desenhar();
 }
+function msg(id, t, tipo){ const e = $(id); e.textContent = t || ''; e.className = 'msg ' + (tipo || ''); }
 
+/* ---------- tela ---------- */
 function desenhar(){
-  const comAcesso = usuarios.filter(u => u.papel !== 'admin');
-  const sits = comAcesso.map(situacao);
-  $('k-ativos').textContent = sits.filter(s => s.c === 'ok' || s.c === 'aviso').length;
-  $('k-vencendo').textContent = sits.filter(s => s.c === 'aviso').length;
-  $('k-vencidos').textContent = sits.filter(s => s.c === 'venc').length;
-  $('k-ubs').textContent = ubsLista.filter(x => x.ativa).length;
-
-  // selects
-  const selNovo = $('n-ubs'), manter = selNovo.value;
-  selNovo.innerHTML = '';
-  ubsLista.filter(x => x.ativa).forEach(x => { const o = el('option', null, x.nome); o.value = x.id; selNovo.appendChild(o); });
-  if(manter) selNovo.value = manter;
-  const selF = $('f-ubs'), mf = selF.value;
-  selF.innerHTML = ''; const todas = el('option', null, 'Todas as UBS'); todas.value = ''; selF.appendChild(todas);
-  ubsLista.forEach(x => { const o = el('option', null, x.nome); o.value = x.id; selF.appendChild(o); });
-  selF.value = mf;
-
-  // UBS
-  const tu = $('t-ubs'); tu.innerHTML = '';
-  if(!ubsLista.length){ const tr = el('tr'); const td = el('td', null, 'Nenhuma UBS cadastrada.'); td.colSpan = 5; tr.appendChild(td); tu.appendChild(tr); }
-  ubsLista.forEach(x => {
-    const tr = el('tr');
-    tr.appendChild(el('td', null, x.nome)); tr.appendChild(el('td', null, x.municipio || ''));
-    tr.appendChild(el('td', null, String(usuarios.filter(u => u.ubs_id === x.id).length)));
-    const ts = el('td'); ts.appendChild(el('span', 'tag ' + (x.ativa ? 'ok' : 'off'), x.ativa ? 'Ativa' : 'Suspensa')); tr.appendChild(ts);
-    const ta = el('td', 'acoes');
-    ta.appendChild(botao('Renomear', 'sec', async () => {
-      const n = prompt('Novo nome da UBS:', x.nome); if(!n || !n.trim()) return;
-      const r = await sb.from('ubs').update({nome: n.trim()}).eq('id', x.id);
-      if(r.error) msg('msg-ubs', r.error.message, 'erro'); else carregar();
-    }));
-    ta.appendChild(botao(x.ativa ? 'Suspender' : 'Reativar', x.ativa ? 'perigo' : 'sec', async () => {
-      if(x.ativa && !confirm('Suspender a UBS ' + x.nome + '? Todos os logins dela perdem o acesso até reativar.')) return;
-      const r = await sb.from('ubs').update({ativa: !x.ativa}).eq('id', x.id);
-      if(r.error) msg('msg-ubs', r.error.message, 'erro'); else carregar();
-    }));
-    tr.appendChild(ta); tu.appendChild(tr);
+  const cont = {todos: usuarios.length, ok:0, aviso:0, venc:0, off:0};
+  usuarios.forEach(u => { cont[situacao(u).c]++; });
+  const defs = [
+    ['todos','👥','Clientes',cont.todos,''], ['ok','✓','Em dia',cont.ok,'k-ok'], ['aviso','⏳','Vencem em 7 dias',cont.aviso,'k-aviso'],
+    ['venc','⛔','Vencidos',cont.venc,'k-venc'], ['off','🚫','Bloqueados',cont.off,'k-off'], ['ubs','🏥','UBS ativas',ubsLista.filter(x => x.ativa).length,'k-ubs']
+  ];
+  const k = $('kpis'); k.innerHTML = '';
+  defs.forEach(([id, ic, nome, n, cls]) => {
+    const b = el('button', 'kpi ' + cls + (filtroKpi === id ? ' sel' : '')); b.type = 'button';
+    b.appendChild(el('b', null, String(n))); b.appendChild(el('span', null, ic + ' ' + nome));
+    b.onclick = () => { if(id === 'ubs'){ abrirUBS(); return; } filtroKpi = id; desenhar(); };
+    k.appendChild(b);
   });
 
-  desenharUsuarios();
-
-  const tp = $('t-pag'); tp.innerHTML = '';
-  const nomes = Object.fromEntries(usuarios.map(u => [u.user_id, (u.nome || u.email)]));
-  pagamentos.forEach(p => {
-    const tr = el('tr');
-    [dataBR(p.created_at), nomes[p.user_id] || '—', String(p.meses), p.valor != null ? 'R$ ' + Number(p.valor).toFixed(2).replace('.', ',') : '—', dataBR(p.vencimento_novo)]
-      .forEach(v => tr.appendChild(el('td', null, v)));
-    tp.appendChild(tr);
-  });
-  if(!pagamentos.length){ const tr = el('tr'); const td = el('td', null, 'Nenhum pagamento registrado.'); td.colSpan = 5; tr.appendChild(td); tp.appendChild(tr); }
+  const sel = $('f-ubs'), atual = sel.value; sel.innerHTML = '';
+  const t = el('option', null, 'Todas as UBS'); t.value = ''; sel.appendChild(t);
+  ubsLista.forEach(x => { const o = el('option', null, x.nome); o.value = x.id; sel.appendChild(o); });
+  sel.value = atual;
+  desenharLista();
 }
 
-function desenharUsuarios(){
-  const fu = $('f-ubs').value, fs = $('f-sit').value, q = $('f-busca').value.trim().toLowerCase();
-  const tb = $('t-usu'); tb.innerHTML = '';
+function desenharLista(){
+  const fu = $('f-ubs').value, q = $('busca').value.trim().toLowerCase();
+  const ultimoPag = {}; pagamentos.forEach(p => { if(!ultimoPag[p.user_id]) ultimoPag[p.user_id] = p.created_at; });
   const lista = usuarios.filter(u =>
-    (!fu || u.ubs_id === fu) && (!fs || situacao(u).c === fs) &&
-    (!q || (u.nome || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q)));
-  if(!lista.length){ const tr = el('tr'); const td = el('td', null, 'Nenhum login encontrado.'); td.colSpan = 8; tr.appendChild(td); tb.appendChild(tr); return; }
+    (filtroKpi === 'todos' || situacao(u).c === filtroKpi) && (!fu || u.ubs_id === fu) &&
+    (!q || [u.nome, u.email, u.ubs_nome].some(v => (v || '').toLowerCase().includes(q))))
+    .sort((a, b) => situacao(a).ord - situacao(b).ord || String(a.vencimento || '').localeCompare(String(b.vencimento || '')) || (a.nome || '').localeCompare(b.nome || ''));
+
+  const tb = $('t-usu'); tb.innerHTML = '';
+  if(!lista.length){ const tr = el('tr'); const td = el('td', 'vazio', 'Nenhum login encontrado.'); td.colSpan = 6; tr.appendChild(td); tb.appendChild(tr); return; }
   lista.forEach(u => {
     const s = situacao(u), tr = el('tr');
-    [u.nome || '', u.email, u.ubs_nome || '—', u.papel === 'tacs' ? 'TACS' : (u.papel === 'gestor' ? 'Gestor' : 'Admin'),
-     u.papel === 'admin' ? '—' : dataBR(u.vencimento)].forEach(v => tr.appendChild(el('td', null, v)));
-    const ts = el('td'); ts.appendChild(el('span', 'tag ' + s.c, s.t)); tr.appendChild(ts);
-    tr.appendChild(el('td', null, u.ultimo_acesso ? dataBR(u.ultimo_acesso) : 'nunca'));
-    const ta = el('td', 'acoes');
-    if(u.papel !== 'admin'){
-      ta.appendChild(botao('Renovar', '', () => renovar(u)));
-      ta.appendChild(botao('Senha', 'sec', () => novaSenha(u)));
-      ta.appendChild(botao(u.ativo ? 'Desativar' : 'Ativar', u.ativo ? 'perigo' : 'sec', () => alternar(u)));
-    }
-    tr.appendChild(ta); tb.appendChild(tr);
+    const tl = el('td'); tl.appendChild(el('div', 'nome', u.nome || u.email));
+    tl.appendChild(el('small', null, u.email));
+    tl.appendChild(el('small', null, 'Último acesso ' + (u.ultimo_acesso ? dataLocalBR(u.ultimo_acesso) : 'nunca') + (ultimoPag[u.user_id] ? ' · Pago em ' + dataLocalBR(ultimoPag[u.user_id]) : '')));
+    tr.appendChild(tl);
+    tr.appendChild(el('td', null, u.ubs_nome || '—'));
+    tr.appendChild(el('td', null, u.papel === 'gestor' ? 'Gestor' : 'TACS'));
+    tr.appendChild(el('td', null, dataBR(u.vencimento)));
+    const ts = el('td'); ts.appendChild(el('span', 'badge b-' + s.c, s.t)); tr.appendChild(ts);
+    const ta = el('td'); const ac = el('div', 'acoes');
+    ac.appendChild(botao('💰 Pago', 'a pago', () => registrarPagamento(u)));
+    ac.appendChild(botao('✏️ Editar', 'a', () => editar(u)));
+    ac.appendChild(botao(u.ativo ? '⛔ Bloquear' : '✓ Desbloquear', u.ativo ? 'a bloq' : 'a', () => alternar(u)));
+    ta.appendChild(ac); tr.appendChild(ta); tb.appendChild(tr);
   });
 }
 
 /* ---------- ações ---------- */
-async function renovar(u){
-  const m = prompt('Renovar o acesso de ' + (u.nome || u.email) + ' por quantos meses?', '1'); if(m === null) return;
-  const meses = parseInt(m, 10);
-  if(!(meses >= 1 && meses <= 36)){ msg('msg-lista', 'Informe de 1 a 36 meses.', 'erro'); return; }
-  const v = prompt('Valor recebido em R$ (opcional, ex.: 49,90):', '');
-  const valor = v && v.trim() ? Number(v.replace(',', '.')) : null;
-  if(valor !== null && !(valor >= 0)){ msg('msg-lista', 'Valor inválido.', 'erro'); return; }
-  const r = await sb.rpc('admin_renovar', {p_user: u.user_id, p_meses: meses, p_valor: valor, p_obs: null});
-  if(r.error){ msg('msg-lista', 'Erro ao renovar: ' + r.error.message, 'erro'); return; }
-  msg('msg-lista', 'Renovado: ' + (u.nome || u.email) + ' agora tem acesso até ' + dataBR(r.data) + '.', 'ok');
-  carregar();
+function registrarPagamento(u){
+  modal('Registrar pagamento', (c, fechar) => {
+    c.appendChild(el('p', 'msg', (u.nome || u.email) + ' · vencimento atual: ' + dataBR(u.vencimento)));
+    const meses = seletor([['1','1 mês'],['2','2 meses'],['3','3 meses'],['6','6 meses'],['12','12 meses']], '1');
+    const valor = entrada('text'); valor.placeholder = 'ex.: 49,90 (opcional)'; valor.inputMode = 'decimal';
+    c.appendChild(campo('Período pago', meses)); c.appendChild(campo('Valor recebido (R$)', valor));
+    const m = el('div', 'msg'); c.appendChild(m);
+    const ok = botao('Confirmar pagamento', 'p');
+    ok.onclick = async () => {
+      const v = valor.value.trim() ? Number(valor.value.replace(',', '.')) : null;
+      if(v !== null && !(v >= 0)){ m.className = 'msg erro'; m.textContent = 'Valor inválido.'; return; }
+      ok.disabled = true;
+      const r = await sb.rpc('admin_renovar', {p_user: u.user_id, p_meses: parseInt(meses.value, 10), p_valor: v, p_obs: null});
+      if(r.error){ m.className = 'msg erro'; m.textContent = 'Erro: ' + r.error.message; ok.disabled = false; return; }
+      fechar(); msg('msg-lista', (u.nome || u.email) + ' agora tem acesso até ' + dataBR(r.data) + '.', 'ok'); carregar();
+    };
+    const f = el('div', 'fim'); f.appendChild(botao('Cancelar', 's', fechar)); f.appendChild(ok); c.appendChild(f);
+  });
 }
-async function novaSenha(u){
-  const s = prompt('Nova senha para ' + (u.nome || u.email) + ' (mín. 8 caracteres):', senhaAleatoria()); if(!s) return;
-  try{ await chamar({acao:'senha', user_id:u.user_id, senha:s}); msg('msg-lista', 'Senha alterada. Nova senha: ' + s, 'ok'); }
-  catch(e){ msg('msg-lista', 'Erro: ' + e.message, 'erro'); }
+
+function editar(u){
+  modal('Editar login', (c, fechar) => {
+    c.appendChild(el('p', 'msg', u.email));
+    const nome = entrada('text', u.nome || ''), ubs = seletor(ubsLista.map(x => [x.id, x.nome + (x.ativa ? '' : ' (suspensa)')]), u.ubs_id),
+          papel = seletor([['tacs','TACS (registra)'],['gestor','Gestor (lê a UBS)']], u.papel), venc = entrada('date', u.vencimento || ''),
+          senha = entrada('text'), gerar = botao('Gerar', 's', () => { senha.value = senhaAleatoria(); });
+    senha.placeholder = 'deixe vazio para manter';
+    c.appendChild(campo('Nome', nome)); c.appendChild(campo('UBS', ubs)); c.appendChild(campo('Papel', papel));
+    c.appendChild(campo('Acesso até', venc)); c.appendChild(campo('Nova senha (mín. 8)', senha, gerar));
+    const m = el('div', 'msg'); c.appendChild(m);
+    const ok = botao('Salvar', 'p');
+    ok.onclick = async () => {
+      if(!nome.value.trim()){ m.className = 'msg erro'; m.textContent = 'Informe o nome.'; return; }
+      if(!venc.value){ m.className = 'msg erro'; m.textContent = 'Informe o vencimento.'; return; }
+      ok.disabled = true;
+      const r = await sb.from('perfis').update({nome: nome.value.trim(), ubs_id: ubs.value, papel: papel.value, vencimento: venc.value}).eq('user_id', u.user_id);
+      if(r.error){ m.className = 'msg erro'; m.textContent = 'Erro: ' + r.error.message; ok.disabled = false; return; }
+      let extra = '';
+      if(senha.value){
+        try{ await chamar({acao:'senha', user_id:u.user_id, senha:senha.value}); extra = ' Nova senha: ' + senha.value; }
+        catch(e){ m.className = 'msg erro'; m.textContent = 'Dados salvos, mas a senha não mudou: ' + e.message; ok.disabled = false; carregar(); return; }
+      }
+      fechar(); msg('msg-lista', 'Login atualizado.' + extra, 'ok'); carregar();
+    };
+    const f = el('div', 'fim'); f.appendChild(botao('Cancelar', 's', fechar)); f.appendChild(ok); c.appendChild(f);
+  });
 }
+
 async function alternar(u){
-  if(u.ativo && !confirm('Desativar o login de ' + (u.nome || u.email) + '?')) return;
+  if(u.ativo && !confirm('Bloquear o login de ' + (u.nome || u.email) + '? Ele perde o acesso na hora.')) return;
   const r = await sb.from('perfis').update({ativo: !u.ativo}).eq('user_id', u.user_id);
-  if(r.error) msg('msg-lista', r.error.message, 'erro'); else carregar();
+  if(r.error) msg('msg-lista', 'Erro: ' + r.error.message, 'erro'); else carregar();
 }
-async function adicionarUBS(){
-  const nome = $('ubs-nome').value.trim(); if(!nome){ msg('msg-ubs', 'Informe o nome da UBS.', 'erro'); return; }
-  const r = await sb.from('ubs').insert({nome, municipio: $('ubs-mun').value.trim() || null});
-  if(r.error){ msg('msg-ubs', r.error.message, 'erro'); return; }
-  $('ubs-nome').value = ''; $('ubs-mun').value = ''; msg('msg-ubs', 'UBS adicionada.', 'ok'); carregar();
+
+function novoLogin(){
+  if(!ubsAtivas().length){ msg('msg-lista', 'Cadastre uma UBS antes (botão UBS).', 'erro'); return; }
+  modal('Novo login', (c, fechar) => {
+    const nome = entrada('text'), email = entrada('email'), senha = entrada('text', senhaAleatoria()), ubs = seletor(ubsAtivas()),
+          papel = seletor([['tacs','TACS (registra)'],['gestor','Gestor (lê a UBS)']]), venc = entrada('date', somarDias(hoje(), 30)),
+          gerar = botao('Gerar', 's', () => { senha.value = senhaAleatoria(); });
+    nome.placeholder = 'Nome do TACS ou gestor';
+    c.appendChild(campo('Nome', nome)); c.appendChild(campo('E-mail (login)', email)); c.appendChild(campo('Senha (mín. 8)', senha, gerar));
+    c.appendChild(campo('UBS', ubs)); c.appendChild(campo('Papel', papel)); c.appendChild(campo('Acesso até', venc));
+    const m = el('div', 'msg'); c.appendChild(m);
+    const ok = botao('Criar login', 'p');
+    ok.onclick = async () => {
+      const d = {acao:'criar', nome:nome.value.trim(), email:email.value.trim(), senha:senha.value, ubs_id:ubs.value, papel:papel.value, vencimento:venc.value};
+      ok.disabled = true; m.className = 'msg'; m.textContent = 'Criando...';
+      try{
+        await chamar(d);
+        const ubsNome = (ubsLista.find(x => x.id === d.ubs_id) || {}).nome || '';
+        const texto = 'Portal TACS — acesso\nUBS: ' + ubsNome + '\nUsuário: ' + d.email + '\nSenha: ' + d.senha + '\nAcesso até: ' + dataBR(d.vencimento);
+        c.innerHTML = ''; c.appendChild(el('p', 'msg ok', 'Login criado. Passe os dados abaixo ao usuário:'));
+        c.appendChild(el('div', 'cred', texto));
+        const cp = botao('Copiar', 's', () => { if(navigator.clipboard) navigator.clipboard.writeText(texto); cp.textContent = 'Copiado'; });
+        const f = el('div', 'fim'); f.appendChild(cp); f.appendChild(botao('Fechar', 'p', fechar)); c.appendChild(f);
+        carregar();
+      }catch(e){ m.className = 'msg erro'; m.textContent = 'Erro: ' + e.message; ok.disabled = false; }
+    };
+    const f = el('div', 'fim'); f.appendChild(botao('Cancelar', 's', fechar)); f.appendChild(ok); c.appendChild(f);
+  });
 }
-async function criarLogin(){
-  const c = {acao:'criar', nome:$('n-nome').value.trim(), email:$('n-email').value.trim(), senha:$('n-senha').value,
-             ubs_id:$('n-ubs').value, papel:$('n-papel').value, vencimento:$('n-venc').value};
-  if(!c.ubs_id){ msg('msg-novo', 'Cadastre e escolha uma UBS.', 'erro'); return; }
-  $('btn-criar').disabled = true; msg('msg-novo', 'Criando...'); $('cred').classList.add('hidden');
-  try{
-    await chamar(c);
-    msg('msg-novo', 'Login criado.', 'ok');
-    const ubs = (ubsLista.find(x => x.id === c.ubs_id) || {}).nome || '';
-    const cred = $('cred'); cred.classList.remove('hidden');
-    cred.textContent = 'Portal TACS — acesso\nUBS: ' + ubs + '\nUsuário: ' + c.email + '\nSenha: ' + c.senha + '\nAcesso até: ' + dataBR(c.vencimento);
-    const cp = el('button', 'btn sec peq', 'Copiar'); cp.style.marginTop = '8px'; cp.style.display = 'block';
-    cp.onclick = () => navigator.clipboard && navigator.clipboard.writeText(cred.firstChild.textContent);
-    cred.appendChild(cp);
-    ['n-nome','n-email','n-senha'].forEach(id => $(id).value = '');
-    carregar();
-  }catch(e){ msg('msg-novo', 'Erro: ' + e.message, 'erro'); }
-  $('btn-criar').disabled = false;
+
+function abrirUBS(){
+  modal('UBS', (c, fechar) => {
+    const nome = entrada('text'), mun = entrada('text'); nome.placeholder = 'Ex.: UBS Centro';
+    c.appendChild(campo('Nova UBS', nome)); c.appendChild(campo('Município', mun));
+    const m = el('div', 'msg'); c.appendChild(m);
+    const add = botao('Adicionar UBS', 'p', async () => {
+      if(!nome.value.trim()){ m.className = 'msg erro'; m.textContent = 'Informe o nome.'; return; }
+      const r = await sb.from('ubs').insert({nome: nome.value.trim(), municipio: mun.value.trim() || null});
+      if(r.error){ m.className = 'msg erro'; m.textContent = r.error.message; return; }
+      fechar(); await carregar(); abrirUBS();
+    });
+    const f = el('div', 'fim'); f.appendChild(add); c.appendChild(f);
+    const t = el('table', 'mini'); const tb = el('tbody');
+    ubsLista.forEach(x => {
+      const tr = el('tr');
+      const n = el('td'); n.appendChild(el('div', 'nome', x.nome)); n.appendChild(el('small', null, usuarios.filter(u => u.ubs_id === x.id).length + ' login(s)' + (x.ativa ? '' : ' · suspensa')));
+      tr.appendChild(n);
+      const a = el('td'); const ac = el('div', 'acoes');
+      ac.appendChild(botao('Renomear', 'a', async () => {
+        const novo = prompt('Novo nome da UBS:', x.nome); if(!novo || !novo.trim()) return;
+        const r = await sb.from('ubs').update({nome: novo.trim()}).eq('id', x.id);
+        if(r.error){ m.className = 'msg erro'; m.textContent = r.error.message; return; } fechar(); await carregar(); abrirUBS();
+      }));
+      ac.appendChild(botao(x.ativa ? 'Suspender' : 'Reativar', x.ativa ? 'a bloq' : 'a', async () => {
+        if(x.ativa && !confirm('Suspender ' + x.nome + '? Todos os logins dela perdem o acesso até reativar.')) return;
+        const r = await sb.from('ubs').update({ativa: !x.ativa}).eq('id', x.id);
+        if(r.error){ m.className = 'msg erro'; m.textContent = r.error.message; return; } fechar(); await carregar(); abrirUBS();
+      }));
+      a.appendChild(ac); tr.appendChild(a); tb.appendChild(tr);
+    });
+    t.appendChild(tb); c.appendChild(t);
+    const f2 = el('div', 'fim'); f2.appendChild(botao('Fechar', 's', fechar)); c.appendChild(f2);
+  });
+}
+
+function abrirPagamentos(){
+  modal('Últimos pagamentos', (c, fechar) => {
+    const todos = Object.fromEntries(usuarios.map(u => [u.user_id, u.nome || u.email]));
+    const t = el('table', 'mini'); const th = el('thead'); const hr = el('tr');
+    ['Data','Login','Meses','Valor','Até'].forEach(x => hr.appendChild(el('th', null, x))); th.appendChild(hr); t.appendChild(th);
+    const tb = el('tbody');
+    pagamentos.slice(0, 100).forEach(p => {
+      const tr = el('tr');
+      [dataLocalBR(p.created_at), todos[p.user_id] || '—', String(p.meses), p.valor != null ? 'R$ ' + Number(p.valor).toFixed(2).replace('.', ',') : '—', dataBR(p.vencimento_novo)]
+        .forEach(v => tr.appendChild(el('td', null, v)));
+      tb.appendChild(tr);
+    });
+    if(!pagamentos.length){ const tr = el('tr'); const td = el('td', 'vazio', 'Nenhum pagamento registrado.'); td.colSpan = 5; tr.appendChild(td); tb.appendChild(tr); }
+    t.appendChild(tb); const r = el('div', 'rolagem'); r.appendChild(t); c.appendChild(r);
+    const f = el('div', 'fim'); f.appendChild(botao('Fechar', 's', fechar)); c.appendChild(f);
+  });
 }
 
 /* ---------- acesso ---------- */
@@ -320,13 +396,13 @@ async function verificar(sessao){
 
 (async function init(){
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  $('n-venc').value = somarDias(hoje(), 30);
   $('btn-sair').onclick = () => sb.auth.signOut();
-  $('btn-ubs').onclick = adicionarUBS;
-  $('btn-criar').onclick = criarLogin;
-  $('btn-gerar').onclick = () => { $('n-senha').value = senhaAleatoria(); };
-  ['f-ubs','f-sit'].forEach(id => $(id).addEventListener('change', desenharUsuarios));
-  $('f-busca').addEventListener('input', desenharUsuarios);
+  $('btn-novo').onclick = novoLogin;
+  $('btn-ubs').onclick = abrirUBS;
+  $('btn-pag').onclick = abrirPagamentos;
+  $('btn-atualizar').onclick = carregar;
+  $('busca').addEventListener('input', desenharLista);
+  $('f-ubs').addEventListener('change', desenharLista);
   sb.auth.onAuthStateChange((_ev, s) => setTimeout(() => verificar(s), 0));
   const {data} = await sb.auth.getSession();
   verificar(data.session);
