@@ -244,7 +244,6 @@ async function mostrar(sessao){
     $('tela-modulos').classList.add('hidden');
     $('tela-bloqueio').classList.remove('hidden');
     ACESSO.mostrarBloqueio($('bloqueio-alvo'), res, sessao, {
-      aoVerificar: async () => { const r = await ACESSO.avaliar(sb, sessao); if(r.estado === 'ok'){ mostrar(sessao); return true; } return false; },
       aoSair: () => sb.auth.signOut()
     });
   }
