@@ -8,7 +8,7 @@
   /* ======== CONFIGURE AQUI ======== */
   var CFG = {
     // Opção 1 (recomendada): preencha a chave e o app gera o QR Code e o "copia e cola" sozinho
-    PIX_CHAVE: '+55 99991723550',               // sua chave Pix (CPF, e-mail, telefone ou chave aleatória)
+    PIX_CHAVE: '+5599991723550',               // sua chave Pix (CPF, e-mail, telefone ou chave aleatória)
     PIX_NOME: 'RAIDON RODRIGUES SOUSA',                // nome do recebedor, como no banco (até 25 letras)
     PIX_CIDADE: 'ALTO ALEGRE DO MARANHÃO',              // cidade do recebedor (até 15 letras)
     PIX_VALOR: 100,                // valor da assinatura em reais, ex.: 49.90 (0 = o cliente digita)
