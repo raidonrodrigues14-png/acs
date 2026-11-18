@@ -2,9 +2,9 @@
    Páginas: tenta a rede primeiro (pega versão nova) e cai no cache sem internet.
    Demais arquivos do site e a biblioteca do Supabase: cache primeiro, atualizando por trás.
    Chamadas à API do Supabase nunca passam pelo cache. */
-const VERSAO = 'tacs-v2';
+const VERSAO = 'tacs-v3';
 const SHELL = ['./', 'index.html', 'risco.html', 'paliativos.html', 'gestor.html',
-               'offline.js', 'acesso.js', 'admin.html', 'pix.png', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+               'offline.js', 'acesso.js', 'qr.js', 'admin.html', 'pix.png', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 const CDN = ['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'];
 
 self.addEventListener('install', e => {
