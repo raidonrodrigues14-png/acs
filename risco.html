@@ -11,6 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <script src="offline.js"></script>
+<script src="acesso.js"></script>
 <style>
   :root{
     --verde:#00563f; --verde-claro:#e3efe9; --cinza:#f4f6f5; --borda:#d5ddd9; --texto:#1c2b25;
@@ -599,11 +600,14 @@ async function abrir(id){
 }
 
 /* ========= LOGIN ========= */
-function mostrar(logado, sessao){
+async function mostrar(logado, sessao){
   if(!logado){ location.replace('./'); return; }   // sem sessão: volta para a tela inicial (login)
-  $('tela-login').classList.toggle('hidden', logado);
-  $('tela-app').classList.toggle('hidden', !logado);
-  if(logado){ $('usuario').textContent = sessao.user.email; carregarLista(); }
+  if(!(await ACESSO.exigir(sb, sessao, ['tacs','gestor']))) return;   // assinatura vencida/sem UBS: volta ao início
+  $('tela-login').classList.add('hidden');
+  $('tela-app').classList.remove('hidden');
+  $('usuario').textContent = ACESSO.rotulo(sessao);
+  if(!$('acs').value && ACESSO.perfil.nome && !familias.length) $('acs').value = ACESSO.perfil.nome;
+  carregarLista();
 }
 async function entrar(){
   msg('msg-login','');
@@ -634,7 +638,7 @@ async function entrar(){
   TACS.aoSincronizar = carregarLista;
   TACS.iniciar(sb);
   $('btn-sair').onclick = ()=>sb.auth.signOut();
-  sb.auth.onAuthStateChange((_ev, sessao)=>{ sessao = sessao || TACS.sessaoLocal(); mostrar(!!sessao, sessao); });
+  sb.auth.onAuthStateChange((_ev, sessao)=>{ sessao = sessao || TACS.sessaoLocal(); setTimeout(()=>mostrar(!!sessao, sessao), 0); });
   const {data} = await sb.auth.getSession();
   const sessao = data.session || TACS.sessaoLocal();   // sem internet, usa a sessão guardada
   mostrar(!!sessao, sessao);

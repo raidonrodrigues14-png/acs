@@ -12,6 +12,8 @@ Páginas estáticas (HTML + JavaScript puro), banco e login no **Supabase**, pub
 | `risco.html` | TACS | **Pontuação de Risco Familiar** (escala de Coelho-Savassi): sentinelas por pessoa, relação morador/cômodo, escore e risco, planilha por TACS e microárea, impressão da ficha por família |
 | `paliativos.html` | TACS e equipe | **Cuidados Paliativos**: elegibilidade simplificada (Etapa 1) e SPICT-BR (Etapa 2), com resultado automático e impressão da ficha |
 | `offline.js`, `sw.js`, `manifest.webmanifest`, `icon-*.png` | Todos | **Modo offline (PWA)**: instalação no celular, abertura sem internet e fila de envio |
+| `admin.html` | Administrador | Cadastro de UBS, criação de logins por UBS, vencimentos e renovação de assinaturas |
+| `acesso.js` | Todos | Perfil, UBS, vencimento e tela de bloqueio com o Pix |
 | `gestor.html` | Gestor | Painel somente leitura: indicadores, distribuição de risco, sentinelas, resumo por TACS e microárea, lista de famílias, exportação CSV |
 
 ### Regras de cálculo
@@ -41,6 +43,11 @@ gestor.html       painel do gestor
 gestor.sql        tabela e permissões do gestor
 paliativos.sql    tabela e permissões dos paliativos
 offline.js        fila offline e sessão local
+acesso.js         perfil, UBS, vencimento e tela do Pix
+admin.html        painel do administrador
+escala.sql        UBS, perfis, assinatura e permissões
+admin-usuarios.ts função do Supabase que cria logins
+pix.png           QR Code do Pix (você adiciona)
 sw.js             service worker (cache do app)
 manifest.webmanifest e icon-*.png   instalação como aplicativo
 vercel.json       (opcional) { "cleanUrls": true }
@@ -133,6 +140,20 @@ git push
 Na Vercel, importe o repositório (**Add New → Project**), sem comando de build e sem pasta de saída. Cada `git push` publica de novo em cerca de 30 segundos.
 
 Para abrir `/gestor` sem a extensão, crie um `vercel.json` com `{ "cleanUrls": true }`.
+
+## Várias UBS e assinatura
+
+- Cada login pertence a **uma UBS** e tem um **papel**: `tacs` (registra), `gestor` (lê só a própria UBS) ou `admin` (você: gerencia UBS, logins e assinaturas; não lê dados de pacientes).
+- Cada login tem um **vencimento** (último dia de acesso). Vencido, o app mostra o **QR Code do Pix**; ao confirmar o pagamento, o administrador renova em `admin.html` e o acesso volta (o usuário toca em "Já paguei — verificar liberação").
+- A trava é feita **no banco** (RLS em `escala.sql`): com a assinatura vencida, o login não lê nem grava dados, mesmo que alguém mexa no código do navegador. Os dados ficam guardados.
+- Pix: coloque o QR Code como `pix.png` na pasta do projeto. Em `acesso.js` dá para preencher o valor, o Pix "copia e cola" e o WhatsApp para envio do comprovante.
+
+**Ordem de configuração**
+
+1. No Supabase, em **Authentication → Users**, crie (ou use) o seu usuário. No fim do `escala.sql`, troque `TROQUE_PELO_SEU_EMAIL` pelo e-mail dele e `TROQUE_PELO_NOME_DA_SUA_UBS` pelo nome da UBS atual. Rode o arquivo no **SQL Editor**. Os usuários que já existem ganham 30 dias de acesso na UBS inicial.
+2. Publique a função `admin-usuarios`: **Edge Functions → Deploy a new function → Via Editor**, nome `admin-usuarios`, cole o conteúdo de `admin-usuarios.ts` e mantenha *Verify JWT* ligado.
+3. Em **Authentication → Sign In / Providers**, desligue *Allow new users to sign up*. Só o administrador cria logins.
+4. Entre com o seu usuário, abra o card **Administração**, cadastre as UBS e crie os logins.
 
 ## Uso sem internet (PWA)
 

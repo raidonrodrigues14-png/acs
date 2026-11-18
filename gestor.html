@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Área do Gestor — Risco Familiar</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="acesso.js"></script>
 <style>
   :root{
     --verde:#00563f; --verde-claro:#e3efe9; --cinza:#f4f6f5; --borda:#d5ddd9; --texto:#1c2b25; --mudo:#55645d;
@@ -65,6 +66,11 @@
   .scroll-x{overflow-x:auto}
 
   .duas > .card{min-width:0}
+  details{border:1px solid var(--borda);border-radius:8px;margin-bottom:10px;background:#fff}
+  details>summary{cursor:pointer;padding:11px 14px;font-weight:700;color:var(--verde);display:flex;justify-content:space-between;gap:10px;align-items:center}
+  details>summary .cnt{background:var(--cinza);color:var(--mudo);border-radius:999px;padding:1px 11px;font-size:.82rem;white-space:nowrap}
+  details>summary .cnt.tem{background:var(--r3);color:#fff}
+  details .scroll-x{padding:0 12px 10px}
   .sec-tit{font-size:.72rem;font-weight:700;letter-spacing:.14em;color:var(--mudo);margin:26px 0 10px}
   .pe{background:#7a3f9b} .pt{background:#f2b705;color:#1c2b25} .pn{background:#2e7d32}
   @media print{
@@ -131,6 +137,42 @@
     </div>
 
     <div class="kpis" id="kpis"></div>
+
+    <div class="card" id="card-acoes">
+      <div class="topo" style="margin-bottom:6px">
+        <h2 style="margin:0">Ações para a equipe</h2>
+        <span class="noprint" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label style="margin:0;font-weight:500;display:flex;gap:6px;align-items:center">Sem nova visita há mais de
+            <input type="number" id="dias" min="1" value="30" inputmode="numeric" style="width:72px;padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:.95rem"> dias</label>
+          <button class="secundario pequeno" id="btn-csv-acoes">Exportar CSV</button>
+        </span>
+      </div>
+      <div class="nota" style="margin-bottom:12px">Considera o registro mais recente de cada família ou paciente. Respeita os filtros de TACS e microárea e ignora o período.</div>
+
+      <details open>
+        <summary><span>Famílias R2 e R3 sem nova visita</span><span class="cnt" id="c-a1">0</span></summary>
+        <div class="scroll-x"><table>
+          <thead><tr><th>Família / responsável</th><th class="c">Risco</th><th class="c">Pontos</th><th>TACS</th><th>Microárea</th><th>Rua / localidade</th><th>Última visita</th><th class="c">Dias</th></tr></thead>
+          <tbody id="t-a1"></tbody>
+        </table></div>
+      </details>
+
+      <details open>
+        <summary><span>Triagem positiva aguardando o SPICT-BR (discutir em equipe)</span><span class="cnt" id="c-a2">0</span></summary>
+        <div class="scroll-x"><table>
+          <thead><tr><th>Paciente</th><th class="c">Idade</th><th>TACS</th><th>Microárea</th><th class="c">Etapa 1</th><th>Avaliado em</th><th class="c">Dias</th></tr></thead>
+          <tbody id="t-a2"></tbody>
+        </table></div>
+      </details>
+
+      <details>
+        <summary><span>Pacientes elegíveis para reavaliar</span><span class="cnt" id="c-a3">0</span></summary>
+        <div class="scroll-x"><table>
+          <thead><tr><th>Paciente</th><th class="c">Idade</th><th>TACS</th><th>Microárea</th><th class="c">SPICT</th><th>Última avaliação</th><th class="c">Dias</th></tr></thead>
+          <tbody id="t-a3"></tbody>
+        </table></div>
+      </details>
+    </div>
 
     <div class="card">
       <h2>Estratificação de risco familiar</h2>
@@ -310,6 +352,7 @@ function aplicar(){
   desenhar(rk);
   filtrarPal();
   desenharPal();
+  desenharAcoes();
 }
 
 /* ========== PAINEL ========== */
@@ -522,6 +565,74 @@ function exportarCSVPal(){
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 
+/* ========== AÇÕES PARA A EQUIPE ========== */
+const hojeISO = () => new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'});
+function diasDesde(iso){
+  if(!iso) return null;
+  const [a,m,d] = iso.split('-').map(Number), [ha,hm,hd] = hojeISO().split('-').map(Number);
+  return Math.round((Date.UTC(ha,hm-1,hd) - Date.UTC(a,m-1,d)) / 86400000);
+}
+// mantém só o registro mais recente de cada família / paciente
+function maisRecentes(lista, chaveFn){
+  const mapa = new Map();
+  lista.slice().sort((a,b)=> (b.data||'').localeCompare(a.data||'') || (b.created_at||'').localeCompare(a.created_at||''))
+    .forEach(r => { const k = chaveFn(r); if(!mapa.has(k)) mapa.set(k, r); });
+  return [...mapa.values()];
+}
+const chaveFamilia = f => f.prontuario ? 'p:'+f.prontuario.trim().toLowerCase() : 'n:'+(f.nome||'').trim().toLowerCase();
+const chavePaciente = r => r.prontuario ? 'p:'+r.prontuario.trim().toLowerCase() : 'n:'+(r.paciente||'').trim().toLowerCase();
+
+function preencherTab(idTab, idCnt, linhas, nCols){
+  const tb = $(idTab); tb.innerHTML = '';
+  $(idCnt).textContent = linhas.length; $(idCnt).classList.toggle('tem', linhas.length > 0);
+  if(!linhas.length){ const tr = el('tr'); const td = el('td',null,'Nenhum caso pendente.'); td.colSpan = nCols; tr.appendChild(td); tb.appendChild(tr); return; }
+  linhas.slice(0,200).forEach(cels=>{
+    const tr = el('tr');
+    cels.forEach(c=>{
+      const td = el('td', c && c.c ? c.c : '');
+      if(c && c.tag){ td.appendChild(el('span','tag '+c.css, c.tag)); }
+      else td.textContent = (c && c.t !== undefined) ? c.t : (c ?? '');
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+  if(linhas.length > 200){ const tr = el('tr'); const td = el('td',null,'Mostrando 200 de '+linhas.length+'. Use os filtros ou exporte o CSV.'); td.colSpan = nCols; tr.appendChild(td); tb.appendChild(tr); }
+}
+
+function desenharAcoes(){
+  const acs = $('f-acs').value, mi = $('f-micro').value;
+  const dias = Math.max(1, Math.floor(Number($('dias').value) || 30));
+  const ok = r => (!acs || r.acs === acs) && (!mi || r.microarea === mi);
+
+  const fams = maisRecentes(todas.filter(ok), chaveFamilia);
+  const pac  = maisRecentes(pal.filter(ok), chavePaciente);
+
+  const a1 = fams.filter(f => (f.risco === 'R2' || f.risco === 'R3') && diasDesde(f.data) > dias)
+    .sort((a,b)=> (ORDEM[a.risco]-ORDEM[b.risco]) || (diasDesde(b.data)-diasDesde(a.data)));
+  const a2 = pac.filter(r => r.resultado === 'TRIAGEM').sort((a,b)=> diasDesde(b.data)-diasDesde(a.data));
+  const a3 = pac.filter(r => r.resultado === 'ELEGIVEL' && diasDesde(r.data) > dias).sort((a,b)=> diasDesde(b.data)-diasDesde(a.data));
+  window._acoes = {a1, a2, a3, dias};
+
+  preencherTab('t-a1','c-a1', a1.map(f => [f.nome, {tag:f.risco, css:COR[f.risco], c:'c'}, {t:f.escore_total, c:'c'}, f.acs, f.microarea, f.rua, dataBR(f.data), {t:diasDesde(f.data), c:'c'}]), 8);
+  preencherTab('t-a2','c-a2', a2.map(r => [r.paciente, {t:r.idade ?? '', c:'c'}, r.acs, r.microarea, {t:r.qtd_triagem+'/'+TOTAL_TRIAGEM, c:'c'}, dataBR(r.data), {t:diasDesde(r.data), c:'c'}]), 7);
+  preencherTab('t-a3','c-a3', a3.map(r => [r.paciente, {t:r.idade ?? '', c:'c'}, r.acs, r.microarea, {t:r.qtd_spict, c:'c'}, dataBR(r.data), {t:diasDesde(r.data), c:'c'}]), 7);
+}
+
+function exportarCSVAcoes(){
+  const A = window._acoes;
+  if(!A || !(A.a1.length || A.a2.length || A.a3.length)){ msg('Não há ações pendentes para exportar.','erro'); return; }
+  const cab = ['Tipo','Nome','Risco / resultado','Pontos / itens','TACS','Microárea','Rua/localidade','Data do último registro','Dias desde o registro'];
+  const esc = v => { const s = (v===null||v===undefined) ? '' : String(v); return /[";\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const linhas = [cab.map(esc).join(';')];
+  A.a1.forEach(f => linhas.push(['Família R2/R3 sem nova visita (> '+A.dias+' dias)', f.nome, f.risco, f.escore_total, f.acs, f.microarea, f.rua, dataBR(f.data), diasDesde(f.data)].map(esc).join(';')));
+  A.a2.forEach(r => linhas.push(['Triagem positiva aguardando SPICT-BR', r.paciente, 'Triagem positiva', r.qtd_triagem+'/'+TOTAL_TRIAGEM, r.acs, r.microarea, r.rua, dataBR(r.data), diasDesde(r.data)].map(esc).join(';')));
+  A.a3.forEach(r => linhas.push(['Elegível para reavaliar (> '+A.dias+' dias)', r.paciente, 'Elegível', r.qtd_spict+' indicador(es)', r.acs, r.microarea, r.rua, dataBR(r.data), diasDesde(r.data)].map(esc).join(';')));
+  const blob = new Blob(['﻿'+linhas.join('\r\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'acoes-equipe-' + hojeISO() + '.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+
 /* ========== CSV ========== */
 function exportarCSV(){
   const lista = window._listaTabela || [];
@@ -546,9 +657,10 @@ async function verificar(sessao){
     $('tela-app').classList.toggle('hidden', !app);
   };
   if(!sessao){ location.replace('./'); return; }   // sem sessão: volta para a tela inicial (login)
-  const {data, error} = await sb.from('gestores').select('user_id').eq('user_id', sessao.user.id).maybeSingle();
-  if(error || !data){ mostra(false,true,false); return; }
-  $('usuario').textContent = sessao.user.email;
+  const a = await ACESSO.avaliar(sb, sessao);
+  if(['vencido','desativado','ubs_inativa'].includes(a.estado)){ location.replace('./'); return; }   // a tela inicial explica
+  if(a.estado !== 'ok' || a.perfil.papel !== 'gestor'){ mostra(false,true,false); return; }
+  $('usuario').textContent = ACESSO.rotulo(sessao);
   mostra(false,false,true);
   carregar();
 }
@@ -569,6 +681,8 @@ async function entrar(){
   $('btn-atualizar').onclick = carregar;
   $('btn-csv').onclick = exportarCSV;
   $('btn-csv-pal').onclick = exportarCSVPal;
+  $('btn-csv-acoes').onclick = exportarCSVAcoes;
+  $('dias').addEventListener('input', desenharAcoes);
   $('f-casos').addEventListener('change', desenharCasos);
   $('busca-pal').addEventListener('input', desenharCasos);
   $('btn-imprimir').onclick = ()=>window.print();
@@ -578,7 +692,7 @@ async function entrar(){
     ['f-de','f-ate','f-acs','f-micro','f-risco','busca','busca-pal'].forEach(id => $(id).value='');
     $('f-unica').checked = false; aplicar();
   };
-  sb.auth.onAuthStateChange((_ev, sessao)=> verificar(sessao));
+  sb.auth.onAuthStateChange((_ev, sessao)=> setTimeout(()=>verificar(sessao), 0));
   const {data} = await sb.auth.getSession();
   verificar(data.session);
 })();

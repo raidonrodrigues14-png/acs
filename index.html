@@ -11,6 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <script src="offline.js"></script>
+<script src="acesso.js"></script>
 <style>
   :root{
     --fundo:#f7faf9; --branco:#fff; --texto:#17302b; --mudo:#62766f; --linha:#d3e2de; --linha-forte:#a9c7c0;
@@ -85,6 +86,8 @@
   .m-risco{--c:var(--acento);--bg:var(--acento-bg)}
   .m-pal{--c:var(--pal);--bg:var(--pal-bg)}
   .m-gestor{--c:#1f5f8b;--bg:#e8f1f8}
+  .m-admin{--c:#8a5a12;--bg:#f8f0e0}
+  .t-adm{color:#8a5a12;border-color:#dcc08a}
   .t-gest{color:#1f5f8b;border-color:#a9c8df}
   a.mod.hidden{display:none!important}
   .rodape{text-align:center;margin-top:34px;font-size:.8rem}
@@ -119,6 +122,9 @@
   <symbol id="i-grafico" viewBox="0 0 48 48">
     <path d="M7 8v32h34"/><path d="M14 31l8-9 6 5 10-13"/><circle cx="14" cy="31" r="1.600"/><circle cx="22" cy="22" r="1.600"/><circle cx="28" cy="27" r="1.600"/><circle cx="38" cy="14" r="1.600"/>
   </symbol>
+  <symbol id="i-ubs" viewBox="0 0 48 48">
+    <path d="M8 41V15l16-7 16 7v26"/><path d="M4 41h40"/><path d="M24 18v11M18.500 23.500h11"/><path d="M20 41v-7h8v7"/>
+  </symbol>
   <symbol id="seta" viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4"/></symbol>
 </svg>
 
@@ -146,6 +152,12 @@
     </div>
   </section>
 
+  <!-- ===== ASSINATURA VENCIDA / SEM ACESSO ===== -->
+  <section id="tela-bloqueio" class="hidden">
+    <div class="marca"><svg><use href="#logo"/></svg><span>Portal TACS</span></div>
+    <div id="bloqueio-alvo"></div>
+  </section>
+
   <!-- ===== MÓDULOS ===== -->
   <section id="tela-modulos" class="hidden">
     <div class="topo">
@@ -163,7 +175,7 @@
 
     <div class="titulo-sec">MÓDULOS DISPONÍVEIS</div>
     <div class="cards">
-      <a class="mod m-risco" href="risco.html">
+      <a class="mod m-risco" id="card-risco" href="risco.html">
         <div class="ico"><svg><use href="#i-casa"/></svg></div>
         <h2>Pontuação de Risco Familiar</h2>
         <p>Planilha por TACS e microárea com a escala de Coelho-Savassi: sentinelas por pessoa, relação morador/cômodo, escore e risco calculados automaticamente.</p>
@@ -171,7 +183,7 @@
         <span class="go">Iniciar ficha <svg><use href="#seta"/></svg></span>
       </a>
 
-      <a class="mod m-pal" href="paliativos.html">
+      <a class="mod m-pal" id="card-pal" href="paliativos.html">
         <div class="ico"><svg><use href="#i-maos"/></svg></div>
         <h2>Cuidados Paliativos</h2>
         <p>Elegibilidade simplificada para o TACS e SPICT-BR para a equipe, com cálculo automático de elegibilidade para abordagem paliativa.</p>
@@ -179,7 +191,16 @@
         <span class="go">Iniciar ficha <svg><use href="#seta"/></svg></span>
       </a>
 
-      <!-- visível apenas para quem está cadastrado como gestor -->
+      <!-- visível apenas para o administrador -->
+      <a class="mod m-admin hidden" id="card-admin" href="admin.html">
+        <div class="ico"><svg><use href="#i-ubs"/></svg></div>
+        <h2>Administração</h2>
+        <p>Cadastre UBS, crie logins para cada unidade, acompanhe os vencimentos e renove assinaturas.</p>
+        <div class="tags"><span class="tag t-adm">UBS</span><span class="tag t-adm">Logins</span><span class="tag t-adm">Assinaturas</span></div>
+        <span class="go">Abrir administração <svg><use href="#seta"/></svg></span>
+      </a>
+
+      <!-- visível apenas para quem é gestor da UBS -->
       <a class="mod m-gestor hidden" id="card-gestor" href="gestor.html">
         <div class="ico"><svg><use href="#i-grafico"/></svg></div>
         <h2>Painel do Gestor</h2>
@@ -202,24 +223,30 @@ const SUPABASE_ANON_KEY = 'sb_publishable_CKcc-9TIe0puzdeYA9D6qg_N6MslJEj';
 const $ = id => document.getElementById(id);
 let sb = null;
 
-function mostrar(sessao){
+async function mostrar(sessao){
   $('tela-login').classList.toggle('hidden', !!sessao);
-  $('tela-modulos').classList.toggle('hidden', !sessao);
-  if(sessao){
-    $('usuario').textContent = sessao.user.email;
-    setTimeout(() => verificarGestor(sessao), 0);   // fora do callback de autenticação
-  } else {
-    $('card-gestor').classList.add('hidden');
+  if(!sessao){
+    ['tela-modulos','tela-bloqueio','card-gestor','card-admin'].forEach(id => $(id).classList.add('hidden'));
+    return;
   }
-}
-// O card do painel só aparece para usuários cadastrados na tabela "gestores"
-async function verificarGestor(sessao){
-  let gestor = false;
-  try{
-    const {data} = await sb.from('gestores').select('user_id').eq('user_id', sessao.user.id).maybeSingle();
-    gestor = !!data;
-  }catch(e){ gestor = false; }
-  $('card-gestor').classList.toggle('hidden', !gestor);
+  const res = await ACESSO.avaliar(sb, sessao);
+  if(res.estado === 'ok'){
+    const papel = res.perfil.papel;
+    $('tela-bloqueio').classList.add('hidden');
+    $('tela-modulos').classList.remove('hidden');
+    $('usuario').textContent = ACESSO.rotulo(sessao);
+    $('card-gestor').classList.toggle('hidden', papel !== 'gestor');
+    $('card-admin').classList.toggle('hidden', papel !== 'admin');
+    $('card-risco').classList.toggle('hidden', papel === 'admin');   // o administrador não vê dados de pacientes
+    $('card-pal').classList.toggle('hidden', papel === 'admin');
+  } else {
+    $('tela-modulos').classList.add('hidden');
+    $('tela-bloqueio').classList.remove('hidden');
+    ACESSO.mostrarBloqueio($('bloqueio-alvo'), res, sessao, {
+      aoVerificar: async () => { const r = await ACESSO.avaliar(sb, sessao); if(r.estado === 'ok'){ mostrar(sessao); return true; } return false; },
+      aoSair: () => sb.auth.signOut()
+    });
+  }
 }
 async function entrar(){
   $('msg-login').textContent = '';
@@ -238,7 +265,7 @@ async function entrar(){
   $('btn-entrar').onclick = entrar;
   $('senha').addEventListener('keydown', e => { if(e.key === 'Enter') entrar(); });
   $('btn-sair').onclick = () => sb.auth.signOut();
-  sb.auth.onAuthStateChange((_ev, sessao) => mostrar(sessao || TACS.sessaoLocal()));
+  sb.auth.onAuthStateChange((_ev, sessao) => setTimeout(() => mostrar(sessao || TACS.sessaoLocal()), 0));   // fora do callback de autenticação
   const {data} = await sb.auth.getSession();
   mostrar(data.session || TACS.sessaoLocal());   // sem internet, usa a sessão guardada
 })();
