@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administração — Portal TACS</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="acesso.js"></script>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f766e">
+<style>
+  :root{
+    --fundo:#f7faf9; --branco:#fff; --texto:#17302b; --mudo:#62766f; --linha:#d3e2de; --linha-forte:#a9c7c0;
+    --acento:#0f766e; --acento-bg:#eaf5f3; --perigo:#a12a3d; --aviso:#a87a00; --ok:#2e7d32;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--fundo);color:var(--texto)}
+  .page{max-width:1100px;margin:0 auto;padding:18px 16px 60px}
+  .hidden{display:none!important}
+  .topo{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--linha);margin-bottom:18px}
+  .topo h1{margin:0;font-size:1.15rem;font-weight:600}
+  .topo .quem{display:flex;align-items:center;gap:12px;font-size:.85rem;color:var(--mudo);flex-wrap:wrap}
+  a.voltar{color:var(--acento);text-decoration:none;font-size:.88rem;border-bottom:1px solid var(--linha-forte)}
+  button{font:inherit;cursor:pointer}
+  .btn{padding:9px 16px;border:1px solid var(--acento);border-radius:9px;background:var(--acento);color:#fff;font-weight:500}
+  .btn.sec{background:#fff;color:var(--acento)}
+  .btn.perigo{background:#fff;color:var(--perigo);border-color:#e3a7b1}
+  .btn.peq{padding:5px 10px;font-size:.8rem}
+  .btn:disabled{opacity:.55;cursor:default}
+  .card{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:18px 18px 16px;margin-bottom:16px}
+  .card h2{margin:0 0 4px;font-size:1.02rem;font-weight:600}
+  .card .sub{margin:0 0 14px;color:var(--mudo);font-size:.85rem}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+  .kpi{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:14px 16px}
+  .kpi b{display:block;font-size:1.7rem;font-weight:600}
+  .kpi span{font-size:.78rem;color:var(--mudo)}
+  .kpi.venc b{color:var(--perigo)} .kpi.aviso b{color:var(--aviso)}
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;align-items:end}
+  label{display:block;font-size:.72rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--mudo);margin-bottom:5px}
+  input,select{width:100%;padding:9px 11px;border:1px solid var(--linha-forte);border-radius:9px;font:inherit;background:#fff;color:var(--texto)}
+  input:focus,select:focus{outline:none;border-color:var(--acento);box-shadow:0 0 0 3px rgba(15,118,110,.12)}
+  .linha{display:flex;gap:8px}
+  .tabela{overflow-x:auto;margin-top:10px}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th{text-align:left;font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--mudo);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--linha);white-space:nowrap}
+  td{padding:9px 10px;border-bottom:1px solid #edf3f1;vertical-align:middle}
+  td.acoes{white-space:nowrap;display:flex;gap:6px;flex-wrap:wrap}
+  .tag{display:inline-block;font-size:.72rem;font-weight:500;border-radius:999px;padding:2px 10px;border:1px solid}
+  .tag.ok{color:var(--ok);border-color:#abd4ad}.tag.aviso{color:var(--aviso);border-color:#e6cd7c}
+  .tag.venc{color:var(--perigo);border-color:#e3a7b1}.tag.off{color:var(--mudo);border-color:var(--linha-forte)}
+  .msg{margin-top:10px;font-size:.88rem}.msg.erro{color:var(--perigo)}.msg.ok{color:var(--ok)}
+  .cred{margin-top:12px;padding:12px 14px;background:var(--acento-bg);border:1px solid var(--linha-forte);border-radius:10px;font-size:.9rem;white-space:pre-line}
+  .filtros{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+  details summary{cursor:pointer;font-weight:600;font-size:1.02rem}
+  .negado{max-width:420px;margin:12vh auto;text-align:center;background:#fff;border:1px solid var(--linha);border-radius:14px;padding:28px}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <section id="tela-negado" class="hidden">
+    <div class="negado">
+      <h2>Sem permissão</h2>
+      <p>Esta área é só do administrador do sistema.</p>
+      <p><a class="voltar" href="./">← Voltar ao início</a></p>
+    </div>
+  </section>
+
+  <section id="tela-app" class="hidden">
+    <div class="topo">
+      <h1>Administração · Portal TACS</h1>
+      <div class="quem"><a class="voltar" href="./">← Início</a><span id="usuario"></span><button class="btn sec peq" id="btn-sair">Sair</button></div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><b id="k-ativos">0</b><span>Logins com acesso</span></div>
+      <div class="kpi aviso"><b id="k-vencendo">0</b><span>Vencem em até 7 dias</span></div>
+      <div class="kpi venc"><b id="k-vencidos">0</b><span>Vencidos</span></div>
+      <div class="kpi"><b id="k-ubs">0</b><span>UBS ativas</span></div>
+    </div>
+
+    <div class="card">
+      <h2>UBS</h2>
+      <p class="sub">Cada UBS enxerga apenas os próprios dados. Cadastre a UBS antes de criar os logins dela.</p>
+      <div class="grade">
+        <div><label for="ubs-nome">Nome da UBS</label><input id="ubs-nome" placeholder="Ex.: UBS Centro"></div>
+        <div><label for="ubs-mun">Município</label><input id="ubs-mun"></div>
+        <div><button class="btn" id="btn-ubs">Adicionar UBS</button></div>
+      </div>
+      <div id="msg-ubs" class="msg"></div>
+      <div class="tabela"><table><thead><tr><th>UBS</th><th>Município</th><th>Logins</th><th>Situação</th><th></th></tr></thead><tbody id="t-ubs"></tbody></table></div>
+    </div>
+
+    <div class="card">
+      <h2>Novo login</h2>
+      <p class="sub">O login já nasce vinculado à UBS e com a data de vencimento escolhida. Passe e-mail e senha ao usuário.</p>
+      <div class="grade">
+        <div><label for="n-nome">Nome</label><input id="n-nome" placeholder="Nome do TACS ou gestor"></div>
+        <div><label for="n-email">E-mail (login)</label><input id="n-email" type="email" autocomplete="off"></div>
+        <div><label for="n-senha">Senha (mín. 8)</label>
+          <div class="linha"><input id="n-senha" autocomplete="off"><button class="btn sec peq" id="btn-gerar" type="button">Gerar</button></div></div>
+        <div><label for="n-ubs">UBS</label><select id="n-ubs"></select></div>
+        <div><label for="n-papel">Papel</label><select id="n-papel"><option value="tacs">TACS (registra)</option><option value="gestor">Gestor (lê a UBS)</option></select></div>
+        <div><label for="n-venc">Acesso até</label><input id="n-venc" type="date"></div>
+        <div><button class="btn" id="btn-criar">Criar login</button></div>
+      </div>
+      <div id="msg-novo" class="msg"></div>
+      <div id="cred" class="cred hidden"></div>
+    </div>
+
+    <div class="card">
+      <h2>Logins e assinaturas</h2>
+      <p class="sub">Renovar soma os meses a partir do vencimento atual (ou de hoje, se já venceu) e registra o pagamento.</p>
+      <div class="filtros">
+        <div><label for="f-ubs">UBS</label><select id="f-ubs"></select></div>
+        <div><label for="f-sit">Situação</label><select id="f-sit"><option value="">Todas</option><option value="ok">Ativos</option><option value="aviso">Vencem em 7 dias</option><option value="venc">Vencidos</option><option value="off">Desativados</option></select></div>
+        <div><label for="f-busca">Buscar</label><input id="f-busca" placeholder="nome ou e-mail"></div>
+      </div>
+      <div id="msg-lista" class="msg"></div>
+      <div class="tabela"><table><thead><tr><th>Nome</th><th>E-mail</th><th>UBS</th><th>Papel</th><th>Vencimento</th><th>Situação</th><th>Último acesso</th><th></th></tr></thead><tbody id="t-usu"></tbody></table></div>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>Últimos pagamentos registrados</summary>
+        <div class="tabela"><table><thead><tr><th>Data</th><th>Login</th><th>Meses</th><th>Valor</th><th>Novo vencimento</th></tr></thead><tbody id="t-pag"></tbody></table></div>
+      </details>
+    </div>
+  </section>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://qnonohzczdvowkssjyaa.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_CKcc-9TIe0puzdeYA9D6qg_N6MslJEj';
+const $ = id => document.getElementById(id);
+let sb = null, usuarios = [], ubsLista = [], pagamentos = [];
+
+/* ---------- utilidades ---------- */
+const hoje = () => new Date().toLocaleDateString('en-CA', {timeZone:'America/Sao_Paulo'});
+function somarDias(iso, n){ const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
+function dias(venc){ return venc ? Math.round((Date.parse(venc + 'T00:00:00Z') - Date.parse(hoje() + 'T00:00:00Z')) / 86400000) : null; }
+function dataBR(iso){ if(!iso) return '—'; const p = String(iso).slice(0,10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+function situacao(u){
+  if(u.papel === 'admin') return {t:'Administrador', c:'ok'};
+  if(!u.ativo) return {t:'Desativado', c:'off'};
+  const d = dias(u.vencimento);
+  if(d === null || d < 0) return {t:'Vencido', c:'venc'};
+  if(d === 0) return {t:'Vence hoje', c:'aviso'};
+  if(d <= 7) return {t:'Vence em ' + d + ' d', c:'aviso'};
+  return {t:'Ativo', c:'ok'};
+}
+function el(tag, cls, txt){ const e = document.createElement(tag); if(cls) e.className = cls; if(txt != null) e.textContent = txt; return e; }
+function msg(id, t, tipo){ const e = $(id); e.textContent = t || ''; e.className = 'msg ' + (tipo || ''); }
+function botao(txt, cls, fn){ const b = el('button', 'btn peq ' + cls, txt); b.onclick = fn; return b; }
+function senhaAleatoria(){
+  const alf = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const v = new Uint32Array(10); crypto.getRandomValues(v);
+  return Array.from(v, x => alf[x % alf.length]).join('');
+}
+async function chamar(corpo){
+  const {data, error} = await sb.functions.invoke('admin-usuarios', {body: corpo});
+  if(error){
+    let m = error.message;
+    try{ const j = await error.context.json(); if(j && j.erro) m = j.erro; }catch(e){}
+    if(/Failed to send|NetworkError|fetch/i.test(m)) m = 'Não foi possível falar com a função admin-usuarios. Ela foi publicada no Supabase?';
+    throw new Error(m);
+  }
+  if(data && data.erro) throw new Error(data.erro);
+  return data;
+}
+
+/* ---------- dados ---------- */
+async function carregar(){
+  const [u, b, p] = await Promise.all([
+    sb.rpc('admin_listar'),
+    sb.from('ubs').select('*').order('nome'),
+    sb.from('pagamentos').select('*').order('created_at', {ascending:false}).limit(50)
+  ]);
+  if(u.error){ msg('msg-lista', 'Erro ao carregar logins: ' + u.error.message, 'erro'); return; }
+  if(b.error){ msg('msg-ubs', 'Erro ao carregar UBS: ' + b.error.message, 'erro'); return; }
+  usuarios = u.data || []; ubsLista = b.data || []; pagamentos = p.data || [];
+  desenhar();
+}
+
+function desenhar(){
+  const comAcesso = usuarios.filter(u => u.papel !== 'admin');
+  const sits = comAcesso.map(situacao);
+  $('k-ativos').textContent = sits.filter(s => s.c === 'ok' || s.c === 'aviso').length;
+  $('k-vencendo').textContent = sits.filter(s => s.c === 'aviso').length;
+  $('k-vencidos').textContent = sits.filter(s => s.c === 'venc').length;
+  $('k-ubs').textContent = ubsLista.filter(x => x.ativa).length;
+
+  // selects
+  const selNovo = $('n-ubs'), manter = selNovo.value;
+  selNovo.innerHTML = '';
+  ubsLista.filter(x => x.ativa).forEach(x => { const o = el('option', null, x.nome); o.value = x.id; selNovo.appendChild(o); });
+  if(manter) selNovo.value = manter;
+  const selF = $('f-ubs'), mf = selF.value;
+  selF.innerHTML = ''; const todas = el('option', null, 'Todas as UBS'); todas.value = ''; selF.appendChild(todas);
+  ubsLista.forEach(x => { const o = el('option', null, x.nome); o.value = x.id; selF.appendChild(o); });
+  selF.value = mf;
+
+  // UBS
+  const tu = $('t-ubs'); tu.innerHTML = '';
+  if(!ubsLista.length){ const tr = el('tr'); const td = el('td', null, 'Nenhuma UBS cadastrada.'); td.colSpan = 5; tr.appendChild(td); tu.appendChild(tr); }
+  ubsLista.forEach(x => {
+    const tr = el('tr');
+    tr.appendChild(el('td', null, x.nome)); tr.appendChild(el('td', null, x.municipio || ''));
+    tr.appendChild(el('td', null, String(usuarios.filter(u => u.ubs_id === x.id).length)));
+    const ts = el('td'); ts.appendChild(el('span', 'tag ' + (x.ativa ? 'ok' : 'off'), x.ativa ? 'Ativa' : 'Suspensa')); tr.appendChild(ts);
+    const ta = el('td', 'acoes');
+    ta.appendChild(botao('Renomear', 'sec', async () => {
+      const n = prompt('Novo nome da UBS:', x.nome); if(!n || !n.trim()) return;
+      const r = await sb.from('ubs').update({nome: n.trim()}).eq('id', x.id);
+      if(r.error) msg('msg-ubs', r.error.message, 'erro'); else carregar();
+    }));
+    ta.appendChild(botao(x.ativa ? 'Suspender' : 'Reativar', x.ativa ? 'perigo' : 'sec', async () => {
+      if(x.ativa && !confirm('Suspender a UBS ' + x.nome + '? Todos os logins dela perdem o acesso até reativar.')) return;
+      const r = await sb.from('ubs').update({ativa: !x.ativa}).eq('id', x.id);
+      if(r.error) msg('msg-ubs', r.error.message, 'erro'); else carregar();
+    }));
+    tr.appendChild(ta); tu.appendChild(tr);
+  });
+
+  desenharUsuarios();
+
+  const tp = $('t-pag'); tp.innerHTML = '';
+  const nomes = Object.fromEntries(usuarios.map(u => [u.user_id, (u.nome || u.email)]));
+  pagamentos.forEach(p => {
+    const tr = el('tr');
+    [dataBR(p.created_at), nomes[p.user_id] || '—', String(p.meses), p.valor != null ? 'R$ ' + Number(p.valor).toFixed(2).replace('.', ',') : '—', dataBR(p.vencimento_novo)]
+      .forEach(v => tr.appendChild(el('td', null, v)));
+    tp.appendChild(tr);
+  });
+  if(!pagamentos.length){ const tr = el('tr'); const td = el('td', null, 'Nenhum pagamento registrado.'); td.colSpan = 5; tr.appendChild(td); tp.appendChild(tr); }
+}
+
+function desenharUsuarios(){
+  const fu = $('f-ubs').value, fs = $('f-sit').value, q = $('f-busca').value.trim().toLowerCase();
+  const tb = $('t-usu'); tb.innerHTML = '';
+  const lista = usuarios.filter(u =>
+    (!fu || u.ubs_id === fu) && (!fs || situacao(u).c === fs) &&
+    (!q || (u.nome || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q)));
+  if(!lista.length){ const tr = el('tr'); const td = el('td', null, 'Nenhum login encontrado.'); td.colSpan = 8; tr.appendChild(td); tb.appendChild(tr); return; }
+  lista.forEach(u => {
+    const s = situacao(u), tr = el('tr');
+    [u.nome || '', u.email, u.ubs_nome || '—', u.papel === 'tacs' ? 'TACS' : (u.papel === 'gestor' ? 'Gestor' : 'Admin'),
+     u.papel === 'admin' ? '—' : dataBR(u.vencimento)].forEach(v => tr.appendChild(el('td', null, v)));
+    const ts = el('td'); ts.appendChild(el('span', 'tag ' + s.c, s.t)); tr.appendChild(ts);
+    tr.appendChild(el('td', null, u.ultimo_acesso ? dataBR(u.ultimo_acesso) : 'nunca'));
+    const ta = el('td', 'acoes');
+    if(u.papel !== 'admin'){
+      ta.appendChild(botao('Renovar', '', () => renovar(u)));
+      ta.appendChild(botao('Senha', 'sec', () => novaSenha(u)));
+      ta.appendChild(botao(u.ativo ? 'Desativar' : 'Ativar', u.ativo ? 'perigo' : 'sec', () => alternar(u)));
+    }
+    tr.appendChild(ta); tb.appendChild(tr);
+  });
+}
+
+/* ---------- ações ---------- */
+async function renovar(u){
+  const m = prompt('Renovar o acesso de ' + (u.nome || u.email) + ' por quantos meses?', '1'); if(m === null) return;
+  const meses = parseInt(m, 10);
+  if(!(meses >= 1 && meses <= 36)){ msg('msg-lista', 'Informe de 1 a 36 meses.', 'erro'); return; }
+  const v = prompt('Valor recebido em R$ (opcional, ex.: 49,90):', '');
+  const valor = v && v.trim() ? Number(v.replace(',', '.')) : null;
+  if(valor !== null && !(valor >= 0)){ msg('msg-lista', 'Valor inválido.', 'erro'); return; }
+  const r = await sb.rpc('admin_renovar', {p_user: u.user_id, p_meses: meses, p_valor: valor, p_obs: null});
+  if(r.error){ msg('msg-lista', 'Erro ao renovar: ' + r.error.message, 'erro'); return; }
+  msg('msg-lista', 'Renovado: ' + (u.nome || u.email) + ' agora tem acesso até ' + dataBR(r.data) + '.', 'ok');
+  carregar();
+}
+async function novaSenha(u){
+  const s = prompt('Nova senha para ' + (u.nome || u.email) + ' (mín. 8 caracteres):', senhaAleatoria()); if(!s) return;
+  try{ await chamar({acao:'senha', user_id:u.user_id, senha:s}); msg('msg-lista', 'Senha alterada. Nova senha: ' + s, 'ok'); }
+  catch(e){ msg('msg-lista', 'Erro: ' + e.message, 'erro'); }
+}
+async function alternar(u){
+  if(u.ativo && !confirm('Desativar o login de ' + (u.nome || u.email) + '?')) return;
+  const r = await sb.from('perfis').update({ativo: !u.ativo}).eq('user_id', u.user_id);
+  if(r.error) msg('msg-lista', r.error.message, 'erro'); else carregar();
+}
+async function adicionarUBS(){
+  const nome = $('ubs-nome').value.trim(); if(!nome){ msg('msg-ubs', 'Informe o nome da UBS.', 'erro'); return; }
+  const r = await sb.from('ubs').insert({nome, municipio: $('ubs-mun').value.trim() || null});
+  if(r.error){ msg('msg-ubs', r.error.message, 'erro'); return; }
+  $('ubs-nome').value = ''; $('ubs-mun').value = ''; msg('msg-ubs', 'UBS adicionada.', 'ok'); carregar();
+}
+async function criarLogin(){
+  const c = {acao:'criar', nome:$('n-nome').value.trim(), email:$('n-email').value.trim(), senha:$('n-senha').value,
+             ubs_id:$('n-ubs').value, papel:$('n-papel').value, vencimento:$('n-venc').value};
+  if(!c.ubs_id){ msg('msg-novo', 'Cadastre e escolha uma UBS.', 'erro'); return; }
+  $('btn-criar').disabled = true; msg('msg-novo', 'Criando...'); $('cred').classList.add('hidden');
+  try{
+    await chamar(c);
+    msg('msg-novo', 'Login criado.', 'ok');
+    const ubs = (ubsLista.find(x => x.id === c.ubs_id) || {}).nome || '';
+    const cred = $('cred'); cred.classList.remove('hidden');
+    cred.textContent = 'Portal TACS — acesso\nUBS: ' + ubs + '\nUsuário: ' + c.email + '\nSenha: ' + c.senha + '\nAcesso até: ' + dataBR(c.vencimento);
+    const cp = el('button', 'btn sec peq', 'Copiar'); cp.style.marginTop = '8px'; cp.style.display = 'block';
+    cp.onclick = () => navigator.clipboard && navigator.clipboard.writeText(cred.firstChild.textContent);
+    cred.appendChild(cp);
+    ['n-nome','n-email','n-senha'].forEach(id => $(id).value = '');
+    carregar();
+  }catch(e){ msg('msg-novo', 'Erro: ' + e.message, 'erro'); }
+  $('btn-criar').disabled = false;
+}
+
+/* ---------- acesso ---------- */
+async function verificar(sessao){
+  if(!sessao){ location.replace('./'); return; }
+  const a = await ACESSO.avaliar(sb, sessao);
+  if(a.estado !== 'ok' || a.perfil.papel !== 'admin'){
+    $('tela-app').classList.add('hidden'); $('tela-negado').classList.remove('hidden'); return;
+  }
+  $('tela-negado').classList.add('hidden'); $('tela-app').classList.remove('hidden');
+  $('usuario').textContent = sessao.user.email;
+  carregar();
+}
+
+(async function init(){
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  $('n-venc').value = somarDias(hoje(), 30);
+  $('btn-sair').onclick = () => sb.auth.signOut();
+  $('btn-ubs').onclick = adicionarUBS;
+  $('btn-criar').onclick = criarLogin;
+  $('btn-gerar').onclick = () => { $('n-senha').value = senhaAleatoria(); };
+  ['f-ubs','f-sit'].forEach(id => $(id).addEventListener('change', desenharUsuarios));
+  $('f-busca').addEventListener('input', desenharUsuarios);
+  sb.auth.onAuthStateChange((_ev, s) => setTimeout(() => verificar(s), 0));
+  const {data} = await sb.auth.getSession();
+  verificar(data.session);
+})();
+</script>
+</body>
+</html>

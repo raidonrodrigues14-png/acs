@@ -118,7 +118,7 @@
         if(!err){ T.descartar(it.tipo, it.id); enviados++; continue; }
         if(T.ehErroRede(err)) break;                     // caiu a conexão: tenta de novo depois
         var f = lerFila();
-        f.forEach(function(x){ if(x.tipo === it.tipo && x.id === it.id) x.erro = String(err.message || err); });
+        f.forEach(function(x){ if(x.tipo === it.tipo && x.id === it.id) x.erro = (err.code === '42501') ? 'assinatura vencida ou sem permissão para salvar' : String(err.message || err); });
         gravarFila(f);
       }
     } finally { sincronizando = false; }
@@ -144,7 +144,7 @@
       '#tacs-banner{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;' +
       'padding:10px 16px;font:500 .9rem/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;background:#2f4f4a;' +
       'box-shadow:0 -2px 10px rgba(0,0,0,.18)}' +
-      '#tacs-banner.off{background:#8a5a00}#tacs-banner.erro{background:#9b2335}#tacs-banner.ok{background:#2e7d32}' +
+      '#tacs-banner[hidden]{display:none}#tacs-banner.off{background:#8a5a00}#tacs-banner.erro{background:#9b2335}#tacs-banner.ok{background:#2e7d32}' +
       '#tacs-banner span{flex:1 1 220px}' +
       '#tacs-banner button{font:inherit;cursor:pointer;border:1px solid rgba(255,255,255,.7);background:transparent;color:#fff;border-radius:8px;padding:5px 12px}' +
       '@media print{#tacs-banner{display:none!important}}';
