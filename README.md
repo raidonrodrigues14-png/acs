@@ -47,6 +47,7 @@ acesso.js         perfil, UBS, vencimento e tela do Pix
 admin.html        painel do administrador
 escala.sql        UBS, perfis, assinatura e permissões
 supervisao.sql    enfermeiras e suas equipes de TACS
+equipe.sql        lista "Minha equipe" do painel da enfermeira
 admin-usuarios.ts função do Supabase que cria logins
 pix.png           QR Code do Pix (você adiciona)
 sw.js             service worker (cache do app)
@@ -161,7 +162,7 @@ Para abrir `/gestor` sem a extensão, crie um `vercel.json` com `{ "cleanUrls": 
 - A enfermeira é um login com papel **Enfermeira / gestor** (`gestor` no banco). Cada TACS tem uma **enfermeira responsável**.
 - No painel do gestor, a enfermeira vê **apenas os dados dos TACS dela**, em qualquer UBS onde eles estejam. Quando a equipe passa por mais de uma UBS, aparece um filtro por UBS.
 - No `admin.html`, o botão **Equipes** liga a enfermeira aos seus TACS (e, se quiser, muda a UBS deles de uma vez). Também dá para definir a enfermeira em **Novo login** e **Editar**. O cartão **Sem enfermeira** mostra os TACS que nenhuma enfermeira enxerga ainda.
-- Rode o `supervisao.sql` no SQL Editor, depois do `escala.sql`.
+- Rode o `supervisao.sql` no SQL Editor, depois do `escala.sql`, e em seguida o `equipe.sql`. O `equipe.sql` faz aparecer o card **Minha equipe** no painel, com todos os TACS da enfermeira, inclusive os que ainda não registraram nada.
 
 ## Uso sem internet (PWA)
 

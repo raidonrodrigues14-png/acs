@@ -139,6 +139,15 @@
 
     <div class="kpis" id="kpis"></div>
 
+    <div class="card" id="card-equipe" style="display:none">
+      <h2>Minha equipe</h2>
+      <p class="nota" style="margin:2px 0 10px">Todos os TACS que você supervisiona, inclusive os que ainda não registraram nada. Não depende dos filtros.</p>
+      <div class="scroll-x"><table>
+        <thead><tr><th>TACS</th><th>UBS</th><th class="c">Planilhas</th><th class="c">Famílias</th><th class="c">Pacientes (paliativos)</th><th>Última entrega</th><th>Situação</th></tr></thead>
+        <tbody id="t-equipe"></tbody>
+      </table></div>
+    </div>
+
     <div class="card" id="card-acoes">
       <div class="topo" style="margin-bottom:6px">
         <h2 style="margin:0">Ações para a equipe</h2>
@@ -297,6 +306,7 @@ const pct = (n,t) => t ? (n*100/t).toFixed(1).replace('.',',')+'%' : '0%';
 const el = (tag, cls, txt) => { const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined&&txt!==null) e.textContent=txt; return e; };
 
 let ubsNome = {};
+let equipe = [], nomeEquipe = {};   // TACS que a enfermeira supervisiona
 /* ========== CARGA ========== */
 async function carregar(){
   msg('Carregando dados...');
@@ -310,10 +320,13 @@ async function carregar(){
     if(data.length < lote) break;
     de += lote;
   }
+  const eq = await sb.rpc('minha_equipe');
+  equipe = eq.error ? [] : (eq.data || []);
+  nomeEquipe = Object.fromEntries(equipe.map(e => [e.user_id, e.nome || e.email]));
   todas = acum.map(r => ({
     ...r,
     data: r.planilhas_risco ? r.planilhas_risco.data : '',
-    acs: r.planilhas_risco ? r.planilhas_risco.acs : '',
+    acs: nomeEquipe[r.user_id] || (r.planilhas_risco ? r.planilhas_risco.acs : ''),   // nome do login, não o digitado na ficha
     rua: r.planilhas_risco ? (r.planilhas_risco.rua || '') : '',
     microarea: r.planilhas_risco ? (r.planilhas_risco.microarea || '') : '',
     planilha_id: r.planilha_id
@@ -321,9 +334,33 @@ async function carregar(){
   const ub = await sb.from('ubs').select('id,nome');
   ubsNome = Object.fromEntries((ub.data || []).map(x => [x.id, x.nome]));
   await carregarPal();
+  pal.forEach(r => { if(nomeEquipe[r.user_id]) r.acs = nomeEquipe[r.user_id]; });
   preencherSelects();
+  desenharEquipe();
   msg(todas.length ? '' : 'Nenhum dado registrado ainda (ou este usuário ainda não tem permissão de gestor).', todas.length ? '' : 'erro');
   aplicar();
+}
+
+function desenharEquipe(){
+  const card = $('card-equipe'), tb = $('t-equipe'); tb.innerHTML = '';
+  if(!equipe.length){ card.style.display = 'none'; return; }
+  card.style.display = '';
+  const hoje = new Date().toLocaleDateString('en-CA', {timeZone:'America/Sao_Paulo'});
+  equipe.forEach(e => {
+    const fam = todas.filter(f => f.user_id === e.user_id), pac = pal.filter(r => r.user_id === e.user_id);
+    const datas = [...fam.map(f => f.data), ...pac.map(r => r.data)].filter(Boolean).sort();
+    const ultima = datas.length ? datas[datas.length - 1] : '';
+    const tr = el('tr');
+    tr.appendChild(el('td', null, e.nome || e.email)); tr.appendChild(el('td', null, e.ubs_nome || '—'));
+    tr.appendChild(el('td', 'c', new Set(fam.map(f => f.planilha_id)).size));
+    tr.appendChild(el('td', 'c', fam.length)); tr.appendChild(el('td', 'c', pac.length));
+    tr.appendChild(el('td', null, ultima ? dataBR(ultima) : '—'));
+    let sit = 'Registrando', cor = '#2e7d32';
+    if(!e.ativo || !e.vencimento || e.vencimento < hoje){ sit = 'Acesso vencido ou bloqueado'; cor = '#a12a3d'; }
+    else if(!datas.length){ sit = 'Sem registros'; cor = '#a87a00'; }
+    const td = el('td'); const sp = el('span', null, sit); sp.style.cssText = 'font-weight:600;color:' + cor; td.appendChild(sp); tr.appendChild(td);
+    tb.appendChild(tr);
+  });
 }
 
 function preencherSelects(){
@@ -338,7 +375,7 @@ function preencherSelects(){
   ids.sort((a,b)=> (ubsNome[a]||'').localeCompare(ubsNome[b]||'','pt-BR')).forEach(id => su.appendChild(new Option(ubsNome[id] || 'UBS', id)));
   su.value = ids.includes(au) ? au : '';
   $('w-ubs').style.display = ids.length > 1 ? '' : 'none';   // só aparece quando a enfermeira tem TACS em mais de uma UBS
-  fill('f-acs', [...todas, ...pal].map(f=>f.acs), 'Todos');
+  fill('f-acs', [...equipe.map(e => e.nome || e.email), ...todas.map(f=>f.acs), ...pal.map(f=>f.acs)], 'Todos');
   fill('f-micro', [...todas, ...pal].map(f=>f.microarea), 'Todas');
 }
 
