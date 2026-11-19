@@ -93,6 +93,7 @@
     <div class="barra">
       <button class="bt" id="btn-novo">＋ Novo login</button>
       <button class="bt" id="btn-ubs">🏥 UBS</button>
+      <button class="bt" id="btn-equipe">👩‍⚕️ Equipes</button>
       <button class="bt" id="btn-pag">💰 Pagamentos</button>
       <a class="bt" href="./">← Início</a>
       <button class="bt" id="btn-sair">Sair</button>
@@ -104,12 +105,13 @@
     <div class="filtros">
       <input class="busca" id="busca" placeholder="Buscar por nome, e-mail ou UBS...">
       <select class="sel" id="f-ubs"></select>
+      <select class="sel" id="f-sup"></select>
       <button class="bt" id="btn-atualizar" style="background:var(--painel);border-color:var(--borda)">Atualizar</button>
     </div>
     <div id="msg-lista" class="msg"></div>
     <div class="painel"><div class="rolagem">
       <table>
-        <thead><tr><th>Login</th><th>UBS</th><th>Papel</th><th>Vencimento</th><th>Situação</th><th>Ações</th></tr></thead>
+        <thead><tr><th>Login</th><th>UBS / Enfermeira</th><th>Papel</th><th>Vencimento</th><th>Situação</th><th>Ações</th></tr></thead>
         <tbody id="t-usu"></tbody>
       </table>
     </div></div>
@@ -134,6 +136,8 @@ function senhaAleatoria(){
   const alf = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const v = new Uint32Array(10); crypto.getRandomValues(v);
   return Array.from(v, x => alf[x % alf.length]).join('');
 }
+const semEnfermeira = u => u.papel === 'tacs' && !u.supervisor_id;
+const opcoesEnfermeiras = () => [['', '— sem enfermeira —'], ...usuarios.filter(u => u.papel === 'gestor').map(u => [u.user_id, u.nome || u.email])];
 function situacao(u){
   if(!u.ativo) return {c:'off', t:'⛔ Bloqueado', ord:3};
   const d = dias(u.vencimento);
@@ -198,9 +202,10 @@ function msg(id, t, tipo){ const e = $(id); e.textContent = t || ''; e.className
 function desenhar(){
   const cont = {todos: usuarios.length, ok:0, aviso:0, venc:0, off:0};
   usuarios.forEach(u => { cont[situacao(u).c]++; });
+  cont.semsup = usuarios.filter(semEnfermeira).length;
   const defs = [
     ['todos','👥','Clientes',cont.todos,''], ['ok','✓','Em dia',cont.ok,'k-ok'], ['aviso','⏳','Vencem em 7 dias',cont.aviso,'k-aviso'],
-    ['venc','⛔','Vencidos',cont.venc,'k-venc'], ['off','🚫','Bloqueados',cont.off,'k-off'], ['ubs','🏥','UBS ativas',ubsLista.filter(x => x.ativa).length,'k-ubs']
+    ['venc','⛔','Vencidos',cont.venc,'k-venc'], ['off','🚫','Bloqueados',cont.off,'k-off'], ['semsup','⚠️','Sem enfermeira',cont.semsup,'k-aviso'], ['ubs','🏥','UBS ativas',ubsLista.filter(x => x.ativa).length,'k-ubs']
   ];
   const k = $('kpis'); k.innerHTML = '';
   defs.forEach(([id, ic, nome, n, cls]) => {
@@ -214,14 +219,19 @@ function desenhar(){
   const t = el('option', null, 'Todas as UBS'); t.value = ''; sel.appendChild(t);
   ubsLista.forEach(x => { const o = el('option', null, x.nome); o.value = x.id; sel.appendChild(o); });
   sel.value = atual;
+  const fs2 = $('f-sup'), a2 = fs2.value; fs2.innerHTML = '';
+  [['', 'Todas as enfermeiras'], ['__none', 'TACS sem enfermeira'], ...usuarios.filter(u => u.papel === 'gestor').map(u => [u.user_id, 'Enf. ' + (u.nome || u.email)])]
+    .forEach(([v, t]) => { const o = el('option', null, t); o.value = v; fs2.appendChild(o); });
+  fs2.value = [...fs2.options].some(o => o.value === a2) ? a2 : '';
   desenharLista();
 }
 
 function desenharLista(){
-  const fu = $('f-ubs').value, q = $('busca').value.trim().toLowerCase();
+  const fu = $('f-ubs').value, fsup = $('f-sup').value, q = $('busca').value.trim().toLowerCase();
   const ultimoPag = {}; pagamentos.forEach(p => { if(!ultimoPag[p.user_id]) ultimoPag[p.user_id] = p.created_at; });
   const lista = usuarios.filter(u =>
-    (filtroKpi === 'todos' || situacao(u).c === filtroKpi) && (!fu || u.ubs_id === fu) &&
+    (filtroKpi === 'todos' || (filtroKpi === 'semsup' ? semEnfermeira(u) : situacao(u).c === filtroKpi)) && (!fu || u.ubs_id === fu) &&
+    (!fsup || (fsup === '__none' ? semEnfermeira(u) : u.supervisor_id === fsup)) &&
     (!q || [u.nome, u.email, u.ubs_nome].some(v => (v || '').toLowerCase().includes(q))))
     .sort((a, b) => situacao(a).ord - situacao(b).ord || String(a.vencimento || '').localeCompare(String(b.vencimento || '')) || (a.nome || '').localeCompare(b.nome || ''));
 
@@ -233,8 +243,10 @@ function desenharLista(){
     tl.appendChild(el('small', null, u.email));
     tl.appendChild(el('small', null, 'Último acesso ' + (u.ultimo_acesso ? dataLocalBR(u.ultimo_acesso) : 'nunca') + (ultimoPag[u.user_id] ? ' · Pago em ' + dataLocalBR(ultimoPag[u.user_id]) : '')));
     tr.appendChild(tl);
-    tr.appendChild(el('td', null, u.ubs_nome || '—'));
-    tr.appendChild(el('td', null, u.papel === 'gestor' ? 'Gestor' : 'TACS'));
+    const tu = el('td'); tu.appendChild(el('div', null, u.ubs_nome || '—'));
+    if(u.papel === 'tacs') tu.appendChild(el('small', null, u.supervisor_nome ? 'Enfermeira: ' + u.supervisor_nome : '⚠ sem enfermeira'));
+    tr.appendChild(tu);
+    tr.appendChild(el('td', null, u.papel === 'gestor' ? 'Enfermeira' : 'TACS'));
     tr.appendChild(el('td', null, dataBR(u.vencimento)));
     const ts = el('td'); ts.appendChild(el('span', 'badge b-' + s.c, s.t)); tr.appendChild(ts);
     const ta = el('td'); const ac = el('div', 'acoes');
@@ -270,10 +282,13 @@ function editar(u){
   modal('Editar login', (c, fechar) => {
     c.appendChild(el('p', 'msg', u.email));
     const nome = entrada('text', u.nome || ''), ubs = seletor(ubsLista.map(x => [x.id, x.nome + (x.ativa ? '' : ' (suspensa)')]), u.ubs_id),
-          papel = seletor([['tacs','TACS (registra)'],['gestor','Gestor (lê a UBS)']], u.papel), venc = entrada('date', u.vencimento || ''),
+          papel = seletor([['tacs','TACS (registra)'],['gestor','Enfermeira / gestor (lê a equipe)']], u.papel), venc = entrada('date', u.vencimento || ''),
           senha = entrada('text'), gerar = botao('Gerar', 's', () => { senha.value = senhaAleatoria(); });
     senha.placeholder = 'deixe vazio para manter';
+    const sup = seletor(opcoesEnfermeiras().filter(o => o[0] !== u.user_id), u.supervisor_id || '');
     c.appendChild(campo('Nome', nome)); c.appendChild(campo('UBS', ubs)); c.appendChild(campo('Papel', papel));
+    const cs = campo('Enfermeira responsável', sup); c.appendChild(cs);
+    const alt = () => { cs.style.display = papel.value === 'tacs' ? '' : 'none'; }; papel.onchange = alt; alt();
     c.appendChild(campo('Acesso até', venc)); c.appendChild(campo('Nova senha (mín. 8)', senha, gerar));
     const m = el('div', 'msg'); c.appendChild(m);
     const ok = botao('Salvar', 'p');
@@ -281,7 +296,7 @@ function editar(u){
       if(!nome.value.trim()){ m.className = 'msg erro'; m.textContent = 'Informe o nome.'; return; }
       if(!venc.value){ m.className = 'msg erro'; m.textContent = 'Informe o vencimento.'; return; }
       ok.disabled = true;
-      const r = await sb.from('perfis').update({nome: nome.value.trim(), ubs_id: ubs.value, papel: papel.value, vencimento: venc.value}).eq('user_id', u.user_id);
+      const r = await sb.from('perfis').update({nome: nome.value.trim(), ubs_id: ubs.value, papel: papel.value, vencimento: venc.value, supervisor_id: papel.value === 'tacs' ? (sup.value || null) : null}).eq('user_id', u.user_id);
       if(r.error){ m.className = 'msg erro'; m.textContent = 'Erro: ' + r.error.message; ok.disabled = false; return; }
       let extra = '';
       if(senha.value){
@@ -304,26 +319,79 @@ function novoLogin(){
   if(!ubsAtivas().length){ msg('msg-lista', 'Cadastre uma UBS antes (botão UBS).', 'erro'); return; }
   modal('Novo login', (c, fechar) => {
     const nome = entrada('text'), email = entrada('email'), senha = entrada('text', senhaAleatoria()), ubs = seletor(ubsAtivas()),
-          papel = seletor([['tacs','TACS (registra)'],['gestor','Gestor (lê a UBS)']]), venc = entrada('date', somarDias(hoje(), 30)),
+          papel = seletor([['tacs','TACS (registra)'],['gestor','Enfermeira / gestor (lê a equipe)']]), venc = entrada('date', somarDias(hoje(), 30)),
           gerar = botao('Gerar', 's', () => { senha.value = senhaAleatoria(); });
     nome.placeholder = 'Nome do TACS ou gestor';
     c.appendChild(campo('Nome', nome)); c.appendChild(campo('E-mail (login)', email)); c.appendChild(campo('Senha (mín. 8)', senha, gerar));
-    c.appendChild(campo('UBS', ubs)); c.appendChild(campo('Papel', papel)); c.appendChild(campo('Acesso até', venc));
+    const sup = seletor(opcoesEnfermeiras());
+    c.appendChild(campo('UBS', ubs)); c.appendChild(campo('Papel', papel));
+    const cs = campo('Enfermeira responsável', sup); c.appendChild(cs);
+    const alt = () => { cs.style.display = papel.value === 'tacs' ? '' : 'none'; }; papel.onchange = alt; alt();
+    c.appendChild(campo('Acesso até', venc));
     const m = el('div', 'msg'); c.appendChild(m);
     const ok = botao('Criar login', 'p');
     ok.onclick = async () => {
       const d = {acao:'criar', nome:nome.value.trim(), email:email.value.trim(), senha:senha.value, ubs_id:ubs.value, papel:papel.value, vencimento:venc.value};
       ok.disabled = true; m.className = 'msg'; m.textContent = 'Criando...';
       try{
-        await chamar(d);
+        const novo = await chamar(d);
+        let aviso = '';
+        if(d.papel === 'tacs' && sup.value && novo && novo.user_id){
+          const up = await sb.from('perfis').update({supervisor_id: sup.value}).eq('user_id', novo.user_id);
+          if(up.error) aviso = ' (atenção: não consegui ligar à enfermeira: ' + up.error.message + ')';
+        }
         const ubsNome = (ubsLista.find(x => x.id === d.ubs_id) || {}).nome || '';
         const texto = 'Portal TACS — acesso\nUBS: ' + ubsNome + '\nUsuário: ' + d.email + '\nSenha: ' + d.senha + '\nAcesso até: ' + dataBR(d.vencimento);
-        c.innerHTML = ''; c.appendChild(el('p', 'msg ok', 'Login criado. Passe os dados abaixo ao usuário:'));
+        c.innerHTML = ''; c.appendChild(el('p', 'msg ok', 'Login criado. Passe os dados abaixo ao usuário:' + aviso));
         c.appendChild(el('div', 'cred', texto));
         const cp = botao('Copiar', 's', () => { if(navigator.clipboard) navigator.clipboard.writeText(texto); cp.textContent = 'Copiado'; });
         const f = el('div', 'fim'); f.appendChild(cp); f.appendChild(botao('Fechar', 'p', fechar)); c.appendChild(f);
         carregar();
       }catch(e){ m.className = 'msg erro'; m.textContent = 'Erro: ' + e.message; ok.disabled = false; }
+    };
+    const f = el('div', 'fim'); f.appendChild(botao('Cancelar', 's', fechar)); f.appendChild(ok); c.appendChild(f);
+  });
+}
+
+function abrirEquipes(){
+  const enf = usuarios.filter(u => u.papel === 'gestor');
+  if(!enf.length){ msg('msg-lista', 'Crie primeiro o login da enfermeira (papel "Enfermeira / gestor") em ＋ Novo login.', 'erro'); return; }
+  const tacs = usuarios.filter(u => u.papel === 'tacs');
+  modal('Equipes das enfermeiras', (c, fechar) => {
+    const selEnf = seletor(enf.map(u => [u.user_id, u.nome || u.email]), enf[0].user_id);
+    const selUbs = seletor([['', 'Manter a UBS atual'], ...ubsAtivas()], '');
+    c.appendChild(campo('Enfermeira', selEnf));
+    c.appendChild(campo('Mudar a UBS dos TACS marcados (opcional)', selUbs));
+    c.appendChild(el('p', 'msg', 'Marque os TACS que fazem parte da equipe dela. A enfermeira vê no painel só os dados desses TACS.'));
+    const lista = el('div'); lista.style.cssText = 'max-height:300px;overflow:auto;border:1px solid var(--borda);border-radius:10px;padding:4px 12px;margin-bottom:6px';
+    const caixas = [];
+    tacs.forEach(u => {
+      const l = el('label'); l.style.cssText = 'display:flex;gap:10px;align-items:center;padding:8px 0;font-size:.9rem;color:var(--texto);font-weight:500;cursor:pointer';
+      const cb = el('input'); cb.type = 'checkbox'; cb.style.width = 'auto';
+      const t = el('span', null, (u.nome || u.email) + ' · ' + (u.ubs_nome || '—') + (u.supervisor_id ? ' · hoje com ' + (u.supervisor_nome || '?') : ' · sem enfermeira'));
+      l.appendChild(cb); l.appendChild(t); lista.appendChild(l); caixas.push({cb, u});
+    });
+    if(!tacs.length) lista.appendChild(el('p', 'msg', 'Nenhum login de TACS ainda.'));
+    c.appendChild(lista);
+    const marcar = () => caixas.forEach(({cb, u}) => { cb.checked = u.supervisor_id === selEnf.value; });
+    selEnf.onchange = marcar; marcar();
+    const m = el('div', 'msg'); c.appendChild(m);
+    const ok = botao('Salvar equipe', 'p');
+    ok.onclick = async () => {
+      const enfId = selEnf.value;
+      const marcados = caixas.filter(x => x.cb.checked).map(x => x.u.user_id);
+      const removidos = caixas.filter(x => !x.cb.checked && x.u.supervisor_id === enfId).map(x => x.u.user_id);
+      ok.disabled = true; m.className = 'msg'; m.textContent = 'Salvando...';
+      const campos = {supervisor_id: enfId}; if(selUbs.value) campos.ubs_id = selUbs.value;
+      if(marcados.length){
+        const r = await sb.from('perfis').update(campos).in('user_id', marcados);
+        if(r.error){ m.className = 'msg erro'; m.textContent = 'Erro: ' + r.error.message; ok.disabled = false; return; }
+      }
+      if(removidos.length){
+        const r = await sb.from('perfis').update({supervisor_id: null}).in('user_id', removidos);
+        if(r.error){ m.className = 'msg erro'; m.textContent = 'Erro: ' + r.error.message; ok.disabled = false; return; }
+      }
+      fechar(); msg('msg-lista', 'Equipe salva: ' + marcados.length + ' TACS com ' + (enf.find(x => x.user_id === enfId).nome || 'a enfermeira') + '.', 'ok'); carregar();
     };
     const f = el('div', 'fim'); f.appendChild(botao('Cancelar', 's', fechar)); f.appendChild(ok); c.appendChild(f);
   });
@@ -399,10 +467,12 @@ async function verificar(sessao){
   $('btn-sair').onclick = () => sb.auth.signOut();
   $('btn-novo').onclick = novoLogin;
   $('btn-ubs').onclick = abrirUBS;
+  $('btn-equipe').onclick = abrirEquipes;
   $('btn-pag').onclick = abrirPagamentos;
   $('btn-atualizar').onclick = carregar;
   $('busca').addEventListener('input', desenharLista);
   $('f-ubs').addEventListener('change', desenharLista);
+  $('f-sup').addEventListener('change', desenharLista);
   sb.auth.onAuthStateChange((_ev, s) => setTimeout(() => verificar(s), 0));
   const {data} = await sb.auth.getSession();
   verificar(data.session);

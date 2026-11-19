@@ -46,6 +46,7 @@ offline.js        fila offline e sessão local
 acesso.js         perfil, UBS, vencimento e tela do Pix
 admin.html        painel do administrador
 escala.sql        UBS, perfis, assinatura e permissões
+supervisao.sql    enfermeiras e suas equipes de TACS
 admin-usuarios.ts função do Supabase que cria logins
 pix.png           QR Code do Pix (você adiciona)
 sw.js             service worker (cache do app)
@@ -154,6 +155,13 @@ Para abrir `/gestor` sem a extensão, crie um `vercel.json` com `{ "cleanUrls": 
 2. Publique a função `admin-usuarios`: **Edge Functions → Deploy a new function → Via Editor**, nome `admin-usuarios`, cole o conteúdo de `admin-usuarios.ts` e mantenha *Verify JWT* ligado.
 3. Em **Authentication → Sign In / Providers**, desligue *Allow new users to sign up*. Só o administrador cria logins.
 4. Entre com o seu usuário, abra o card **Administração**, cadastre as UBS e crie os logins.
+
+## Enfermeiras e suas equipes
+
+- A enfermeira é um login com papel **Enfermeira / gestor** (`gestor` no banco). Cada TACS tem uma **enfermeira responsável**.
+- No painel do gestor, a enfermeira vê **apenas os dados dos TACS dela**, em qualquer UBS onde eles estejam. Quando a equipe passa por mais de uma UBS, aparece um filtro por UBS.
+- No `admin.html`, o botão **Equipes** liga a enfermeira aos seus TACS (e, se quiser, muda a UBS deles de uma vez). Também dá para definir a enfermeira em **Novo login** e **Editar**. O cartão **Sem enfermeira** mostra os TACS que nenhuma enfermeira enxerga ainda.
+- Rode o `supervisao.sql` no SQL Editor, depois do `escala.sql`.
 
 ## Uso sem internet (PWA)
 
