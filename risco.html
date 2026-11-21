@@ -185,6 +185,18 @@
         <button class="secundario" id="btn-limpar">Limpar campos</button>
       </div>
       <div id="msg-form" class="msg"></div>
+      <div style="background:#f3f7f6;border:1px solid #d5e2df;border-radius:10px;padding:10px 12px;margin-top:12px">
+        <b>Copiar para outras famílias</b>
+        <div class="nota" style="margin:2px 0 8px">Marque as famílias na coluna Nº da lista (passo 3), escolha o que copiar e clique em Aplicar. Vale o que está escrito neste formulário agora.</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center">
+          <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="cp-rua" checked> Rua</label>
+          <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="cp-mor"> Nº de moradores</label>
+          <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="cp-com"> Nº de cômodos</label>
+          <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="cp-sent"> Sentinelas</label>
+          <button class="primario" id="cp-aplicar" type="button">Aplicar às famílias marcadas</button>
+        </div>
+        <div id="msg-copia" class="msg"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -454,6 +466,22 @@ function aplicarRuaLote(){
   msg('msg-lote','Rua aplicada a '+alvo.length+(alvo.length===1?' família':' famílias')+'. Clique em "Salvar planilha" para gravar.','ok');
 }
 
+function copiarParaMarcadas(){
+  const alvo = familias.filter(f=>f.sel);
+  const usar = ['cp-rua','cp-mor','cp-com','cp-sent'].filter(id=>$(id).checked);
+  if(!alvo.length){ msg('msg-copia','Marque antes as famílias na lista (coluna Nº, passo 3).','erro'); return; }
+  if(!usar.length){ msg('msg-copia','Escolha o que copiar.','erro'); return; }
+  const d = lerForm();
+  alvo.forEach(f=>{
+    if($('cp-rua').checked) f.rua = d.rua;
+    if($('cp-mor').checked) f.moradores = d.moradores;
+    if($('cp-com').checked) f.comodos = d.comodos;
+    if($('cp-sent').checked) f.qtd = Object.assign({}, d.qtd);
+  });
+  sujo = true; renderLista();
+  msg('msg-copia','Aplicado a '+alvo.length+(alvo.length===1?' família':' famílias')+'. Clique em "Salvar planilha" para gravar.','ok');
+}
+
 function hoje(){ return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); }
 
 function novaPlanilha(){
@@ -664,6 +692,7 @@ async function entrar(){
   ['f-pront','f-nome','f-mor','f-com'].forEach(id => $(id).addEventListener('input', atualizarForm));
   ['data','acs','rua','microarea'].forEach(id => $(id).addEventListener('input', ()=>{ sujo = true; }));
   $('rua').addEventListener('input', ()=>{ if(editando === null) $('f-rua').value = $('rua').value; });
+  $('cp-aplicar').onclick = copiarParaMarcadas;
   $('lt-marcar').onclick = marcarIntervalo;
   $('lt-limpar').onclick = ()=>{ familias.forEach(f=>f.sel=false); renderLista(); };
   $('lt-aplicar').onclick = aplicarRuaLote;
