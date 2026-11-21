@@ -190,9 +190,24 @@
     <div class="card">
       <h2>3. Famílias da planilha</h2>
       <div class="resumo" id="resumo"></div>
+      <div id="lote" style="background:#f3f7f6;border:1px solid #d5e2df;border-radius:10px;padding:10px 12px;margin:10px 0">
+        <b>Mudar a rua de várias famílias de uma vez</b>
+        <div class="nota" style="margin:2px 0 8px">Marque as famílias na coluna Nº (ou use "do nº … ao nº …"), escreva a rua e clique em Aplicar.</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
+          <div><label for="lt-de">Do nº</label><input type="number" id="lt-de" min="1" style="width:80px"></div>
+          <div><label for="lt-ate">ao nº</label><input type="number" id="lt-ate" min="1" style="width:80px"></div>
+          <button class="secundario pequeno" id="lt-marcar" type="button">Marcar esse intervalo</button>
+          <button class="secundario pequeno" id="lt-limpar" type="button">Desmarcar tudo</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:8px">
+          <div style="flex:1 1 240px"><label for="lt-rua">Rua para as marcadas <span class="nota" id="lt-cont" style="font-weight:400"></span></label><input type="text" id="lt-rua" placeholder="Rua e bairro"></div>
+          <button class="primario" id="lt-aplicar" type="button">Aplicar rua às marcadas</button>
+        </div>
+        <div id="msg-lote" class="msg"></div>
+      </div>
       <div class="scroll-x">
         <table>
-          <thead><tr><th class="c">Nº</th><th>Prontuário</th><th>Família / responsável</th><th>Rua</th><th class="c">Pontos</th><th class="c">Risco</th><th></th></tr></thead>
+          <thead><tr><th class="c"><input type="checkbox" id="lt-todas" title="Marcar todas"> Nº</th><th>Prontuário</th><th>Família / responsável</th><th>Rua</th><th class="c">Pontos</th><th class="c">Risco</th><th></th></tr></thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
@@ -395,7 +410,10 @@ function renderLista(){
     const c = calcular(f); f.res = c; cont[c.risco.cod]++;
     const tr = document.createElement('tr');
     const cel = (txt, cls) => { const td=document.createElement('td'); if(cls) td.className=cls; td.textContent=txt; tr.appendChild(td); return td; };
-    cel(i+1,'c'); cel(f.prontuario||''); cel(f.nome); cel(f.rua||'');
+    const tn = cel('','c'); const cb = document.createElement('input'); cb.type='checkbox'; cb.checked=!!f.sel; cb.setAttribute('aria-label','Marcar família '+(i+1));
+    cb.onchange=()=>{ f.sel=cb.checked; contarMarcadas(); };
+    tn.appendChild(cb); tn.appendChild(document.createTextNode(' '+(i+1)));
+    cel(f.prontuario||''); cel(f.nome); cel(f.rua||'');
     const tp = cel(c.total,'c'); tp.style.fontWeight='800';
     const tr2 = document.createElement('td'); tr2.className='c';
     const tag = document.createElement('span'); tag.className='tag '+c.risco.css; tag.textContent=c.risco.cod; tr2.appendChild(tag); tr.appendChild(tr2);
@@ -406,12 +424,34 @@ function renderLista(){
     ta.appendChild(be); ta.appendChild(bi); ta.appendChild(bx); tr.appendChild(ta);
     tb.appendChild(tr);
   });
+  contarMarcadas();
   const box = $('resumo'); box.innerHTML = '';
   [['Famílias',familias.length],['RH',cont.RH],['R1',cont.R1],['R2',cont.R2],['R3',cont.R3]].forEach(([t,v])=>{
     const d = document.createElement('div'); d.innerHTML = '<b></b><span class="nota"></span>';
     d.querySelector('b').textContent = v; d.querySelector('span').textContent = t; box.appendChild(d);
   });
   return {total: familias.length, ...cont};
+}
+
+function contarMarcadas(){
+  const n = familias.filter(f=>f.sel).length;
+  $('lt-cont').textContent = n ? '(' + n + (n===1?' marcada)':' marcadas)') : '(nenhuma marcada)';
+  const t = $('lt-todas'); if(t) t.checked = familias.length > 0 && n === familias.length;
+}
+function marcarIntervalo(){
+  const de = num($('lt-de').value), ate = num($('lt-ate').value) || de;
+  if(!de){ msg('msg-lote','Informe o nº inicial.','erro'); return; }
+  const a = Math.min(de,ate), b = Math.max(de,ate);
+  familias.forEach((f,i)=>{ f.sel = (i+1 >= a && i+1 <= b); });
+  renderLista(); msg('msg-lote','Marcadas as famílias de '+a+' a '+Math.min(b,familias.length)+'.','ok');
+}
+function aplicarRuaLote(){
+  const rua = $('lt-rua').value.trim(), alvo = familias.filter(f=>f.sel);
+  if(!alvo.length){ msg('msg-lote','Marque pelo menos uma família.','erro'); return; }
+  if(!rua){ msg('msg-lote','Escreva a rua.','erro'); return; }
+  alvo.forEach(f=>{ f.rua = rua; });
+  sujo = true; renderLista();
+  msg('msg-lote','Rua aplicada a '+alvo.length+(alvo.length===1?' família':' famílias')+'. Clique em "Salvar planilha" para gravar.','ok');
 }
 
 function hoje(){ return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); }
@@ -624,6 +664,10 @@ async function entrar(){
   ['f-pront','f-nome','f-mor','f-com'].forEach(id => $(id).addEventListener('input', atualizarForm));
   ['data','acs','rua','microarea'].forEach(id => $(id).addEventListener('input', ()=>{ sujo = true; }));
   $('rua').addEventListener('input', ()=>{ if(editando === null) $('f-rua').value = $('rua').value; });
+  $('lt-marcar').onclick = marcarIntervalo;
+  $('lt-limpar').onclick = ()=>{ familias.forEach(f=>f.sel=false); renderLista(); };
+  $('lt-aplicar').onclick = aplicarRuaLote;
+  $('lt-todas').onchange = e=>{ familias.forEach(f=>f.sel=e.target.checked); renderLista(); };
   $('btn-add').onclick = adicionar;
   $('btn-cancelar').onclick = limparForm;
   $('btn-limpar').onclick = ()=>{ const eraEdicao = editando !== null; preencherForm({rua: eraEdicao ? '' : $('rua').value.trim()}); msg('msg-form',''); if(eraEdicao){ /* mantém em edição, só zera os campos */ } };
