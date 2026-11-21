@@ -327,7 +327,7 @@ async function carregar(){
     ...r,
     data: r.planilhas_risco ? r.planilhas_risco.data : '',
     acs: nomeEquipe[r.user_id] || (r.planilhas_risco ? r.planilhas_risco.acs : ''),   // nome do login, não o digitado na ficha
-    rua: r.planilhas_risco ? (r.planilhas_risco.rua || '') : '',
+    rua: r.rua || (r.planilhas_risco ? (r.planilhas_risco.rua || '') : ''),
     microarea: r.planilhas_risco ? (r.planilhas_risco.microarea || '') : '',
     planilha_id: r.planilha_id
   }));
